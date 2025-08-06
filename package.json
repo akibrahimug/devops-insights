@@ -1,0 +1,25 @@
+{
+  "_comment": "DEVOPS INSIGHTS DASHBOARD - BACKEND PACKAGE CONFIGURATION. This package.json defines all dependencies, scripts, and metadata for the Node.js backend server that powers the DevOps insights dashboard. It uses Express.js for minimal HTTP endpoints (health checks, metrics, status only) with WebSocket (ws) as the primary communication method for all main application functionality, Redis for session management and pub/sub messaging, and TypeScript for type safety. Express handles only essential system monitoring endpoints while WebSockets handle all dashboard data, authentication, and user interactions.",
+  "name": "server",
+  "version": "1.0.0",
+  "description": "This is the backend of the devops insights dashboard",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Kasoma Ibrahim",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/bunyan": "^1.8.11",
+    "@types/node": "^24.2.0",
+    "@types/ws": "^8.18.1",
+    "bunyan": "^1.8.15",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "http-status-codes": "^2.3.0",
+    "redis": "^5.8.0",
+    "ws": "^8.18.3"
+  }
+}

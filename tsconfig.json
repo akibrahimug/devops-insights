@@ -1,0 +1,20 @@
+{
+  // TYPESCRIPT CONFIGURATION FOR DEVOPS INSIGHTS DASHBOARD BACKEND
+  // This configuration file sets up TypeScript compilation settings for the backend server.
+  // It enables strict type checking, ES6 target compilation, CommonJS modules for Node.js compatibility,
+  // and sets up path mapping for clean imports using @root/* aliases pointing to the src directory.
+  // The output is compiled to the dist/ directory with source maps for debugging.
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@root/*": ["src/*"]
+    }
+  }
+}
