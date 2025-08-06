@@ -1,45 +1,83 @@
 /**
- * API ROUTES AND WEBSOCKET MESSAGE HANDLERS CONFIGURATION
+ * MINIMAL API ROUTES FOR EXTERNAL API CONSUMPTION
  *
- * This file serves as the central hub for both minimal HTTP API routes and comprehensive
- * WebSocket message handlers for the DevOps Insights Dashboard backend. It organizes
- * a few essential REST API endpoints for system monitoring alongside comprehensive
- * WebSocket message handlers for all main application communication.
+ * Simple HTTP routes for health checks and serving cached external API data.
+ * All real-time updates are handled via WebSockets.
  *
- * Key Responsibilities:
- * - Import and organize minimal HTTP route modules (health checks, metrics, status only)
- * - Import and organize comprehensive WebSocket message handler modules
- * - Register minimal HTTP routes with Express (system endpoints only, no main app data)
- * - Register comprehensive WebSocket message handlers for all dashboard functionality
- * - Apply middleware to both minimal HTTP routes and comprehensive WebSocket messages
- * - Configure basic API structure for system endpoints
- * - Set up comprehensive real-time event broadcasting for WebSocket clients
- * - Define message schemas and validation for both minimal HTTP and comprehensive WebSocket
- * - Apply consistent response/message formatting across all endpoints
- *
- * Minimal HTTP Route Categories (Express - System Only):
- * - Health check routes (/api/health, /api/status) - Server health monitoring
- * - Metrics routes (/api/metrics) - System performance metrics
- * - Basic status endpoints (/api/version, /api/info) - Server information
- *
- * Comprehensive WebSocket Message Categories (Primary Communication):
- * - Real-time DevOps metrics (deployment status, performance data, alerts)
- * - Live dashboard updates (charts, notifications, real-time data streams)
- * - User interaction messages (dashboard actions, commands, preferences)
- * - System monitoring streams (logs, health metrics, real-time system data)
- * - Data queries and responses (all dashboard data requests and responses)
- * - Simple connection management (no authentication required)
- *
- * Architecture Note: Express handles ONLY minimal system monitoring endpoints
- * that don't pass through main WebSocket connections. ALL main application
- * communication (data, user interactions) goes through WebSockets.
- * No authentication is implemented to maintain simplicity and focus on core functionality.
+ * Architecture:
+ * - Express: Basic health/status endpoints and cached data serving
+ * - WebSockets: Real-time updates when external API data changes
+ * - Redis: Cache for external API responses (Upscope, etc.)
  */
 
-// TODO: Implement minimal HTTP routes and comprehensive WebSocket handlers
-// - Import minimal HTTP route modules (health/metrics only) and comprehensive WebSocket handlers
-// - Register minimal HTTP routes with Express app (system monitoring only)
-// - Register comprehensive WebSocket handlers for all main application communication
-// - Apply appropriate middleware to each communication type
-// - Set up comprehensive real-time broadcasting and subscription management
-// - Export routing configuration separating minimal HTTP from primary WebSocket communication
+import { Application, Request, Response } from 'express';
+import { config } from '@root/config';
+import { apiPoller } from '@root/services/api-poller';
+import Logger from 'bunyan';
+
+const log: Logger = config.createLogger('routes');
+const BASE_PATH = '/api/v1';
+
+export default (app: Application) => {
+  // Health check endpoint
+  app.get(`${BASE_PATH}/health`, (req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      service: 'devops-insights-backend',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  });
+
+  // Get cached metrics from Redis (populated by external API polling)
+  app.get(`${BASE_PATH}/metrics`, async (req: Request, res: Response) => {
+    try {
+      const source = req.query.source as string;
+      const metrics = await apiPoller.getCachedMetrics(source);
+
+      res.json({
+        success: true,
+        data: metrics,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error('Error fetching metrics:', error);
+      res.status(500).json({ error: 'Failed to fetch metrics' });
+    }
+  });
+
+  // Get specific external API data (e.g., /api/metrics/upscope)
+  app.get(
+    `${BASE_PATH}/metrics/:source`,
+    async (req: Request, res: Response) => {
+      try {
+        const metrics = await apiPoller.getCachedMetrics(req.params.source);
+
+        if (!metrics) {
+          return res.status(404).json({ error: 'Source not found' });
+        }
+
+        res.json({
+          success: true,
+          source: req.params.source,
+          data: metrics,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        log.error('Error fetching metrics:', error);
+        res.status(500).json({ error: 'Failed to fetch metrics' });
+      }
+    },
+  );
+
+  // Basic system info
+  app.get(`${BASE_PATH}/info`, (req: Request, res: Response) => {
+    res.json({
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      websocket_enabled: true,
+      redis_enabled: true,
+      external_apis: [process.env.EXTERNAL_API_NAME!],
+    });
+  });
+};
