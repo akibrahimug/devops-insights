@@ -18,8 +18,8 @@
  * settings and proper environment-specific behavior for development, staging, and production.
  */
 
-import dotenv from "dotenv";
-import bunyan from "bunyan";
+import dotenv from 'dotenv';
+import bunyan from 'bunyan';
 
 // Load environment variables from .env file
 dotenv.config({});
@@ -32,14 +32,14 @@ class Config {
 
   // Default MongoDB connection string for local development environment
   private readonly DEFAULT_DATABASE_URL =
-    "mongodb://127.0.0.1:27017/devops-insights-backend";
+    'mongodb://127.0.0.1:27017/devops-insights-backend';
 
   constructor() {
     // Initialize configuration properties with environment variables or defaults
     this.DATABASE_URL = process.env.DATABASE_URL || this.DEFAULT_DATABASE_URL;
-    this.NODE_ENV = process.env.NODE_ENV || "";
-    this.CLIENT_URL = process.env.CLIENT_URL || "";
-    this.REDIS_HOST = process.env.REDIS_HOST || "";
+    this.NODE_ENV = process.env.NODE_ENV || '';
+    this.CLIENT_URL = process.env.CLIENT_URL || '';
+    this.REDIS_HOST = process.env.REDIS_HOST || '';
   }
 
   /**
@@ -48,7 +48,7 @@ class Config {
    * @returns Configured Bunyan logger with debug level enabled
    */
   public createLogger(name: string): bunyan {
-    return bunyan.createLogger({ name, level: "debug" });
+    return bunyan.createLogger({ name, level: 'debug' });
   }
 
   /**

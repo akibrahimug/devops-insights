@@ -21,12 +21,12 @@
  * that powers the real-time DevOps insights dashboard functionality.
  */
 
-import Logger from "bunyan";
-import { config } from "@root/config";
-import { BaseCache } from "./base.cache";
+import Logger from 'bunyan';
+import { config } from '@root/config';
+import { BaseCache } from '@service/redis/base.cache';
 
 // Create a dedicated logger for Redis connection operations
-const log: Logger = config.createLogger("redisConnection");
+const log: Logger = config.createLogger('redisConnection');
 
 /**
  * Redis connection management class that extends BaseCache
@@ -36,7 +36,7 @@ const log: Logger = config.createLogger("redisConnection");
 class RedisConnection extends BaseCache {
   constructor() {
     // Initialize with specific cache name for Redis connection logging
-    super("redisConnection");
+    super('redisConnection');
   }
 
   /**
