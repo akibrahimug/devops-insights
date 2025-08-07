@@ -23,7 +23,7 @@
 
 import Logger from 'bunyan';
 import { config } from '@root/config';
-import { BaseCache } from '@service/redis/base.cache';
+import { BaseCache } from '@services/redis/base.cache';
 
 // Create a dedicated logger for Redis connection operations
 const log: Logger = config.createLogger('redisConnection');

@@ -17,6 +17,7 @@ import type { ChangeStream } from 'mongodb';
 import apiRegions from '@root/static/api-regions.json';
 
 const ALLOWED_SOURCES = apiRegions.allowed_sources as readonly string[];
+type Source = (typeof ALLOWED_SOURCES)[number];
 
 export class DevopsInsightsServer {
   private app: Application;
@@ -27,9 +28,7 @@ export class DevopsInsightsServer {
 
   private readonly port = Number(config.SERVER_PORT || 5000);
   private readonly mongoUrl = config.DATABASE_URL!;
-  private readonly apiName = (
-    config.EXTERNAL_API_NAME || 'upscope'
-  ).toLowerCase();
+  private readonly apiName = (config.EXTERNAL_API_NAME || '').toLowerCase();
 
   constructor(app?: Application) {
     this.app = app ?? express();
@@ -64,8 +63,8 @@ export class DevopsInsightsServer {
     this.started = false;
     try {
       await this.metricCS?.close();
-      } catch (err) {
-     console.error('Error closing change stream:', err);
+    } catch (err) {
+      console.error('Error closing change stream:', err);
     }
     apiPoller.stopPolling();
     await new Promise<void>((r) => this.io?.close(() => r()));

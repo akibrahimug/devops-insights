@@ -3,20 +3,17 @@
   "name": "server",
   "version": "1.0.0",
   "description": "This is the backend of the devops insights dashboard",
-  "main": "dist/src/app.js",
+  "main": "dist/app.js",
   "scripts": {
-    "scripts": {
-      "start": "cross-env NODE_ENV=production pm2 start dist/src/app.js -i max --no-autorestart && pm2 logs",
-      "stop": "pm2 stop all",
-      "test": "jest --coverage -w=1 --runInBand --detectOpenHandles"
-    },
+    "start": "cross-env NODE_ENV=production pm2 start dist/app.js -i max --no-autorestart && pm2 logs",
+    "stop": "pm2 stop all",
     "test": "jest --coverage=true -w=1 --forceExit --detectOpenHandles --watchAll=false",
     "dev": "nodemon --exec ts-node -r tsconfig-paths/register src/app.ts | ./node_modules/.bin/bunyan",
     "lint:check": "eslint 'src/**/*.ts'",
     "lint:fix": "eslint --fix 'src/**/*.ts'",
     "prettier:check": "prettier --check 'src/**/*.{ts,json,md}'",
     "prettier:fix": "prettier --write 'src/**/*.{ts,json,md}'",
-    "build": "ttsc -p ."
+    "build": "tsc -p ."
   },
   "author": "Kasoma Ibrahim",
   "license": "ISC",
@@ -30,16 +27,15 @@
     "@types/swagger-stats": "^0.95.11",
     "@types/ws": "^8.18.1",
     "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
     "jest": "^30.0.5",
     "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "ttypescript": "^1.5.15",
+    "ts-patch": "^3.3.0",
     "typescript": "^5.9.2",
-    "typescript-transform-paths": "^3.5.5",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.6.2"
+    "typescript-transform-paths": "^3.5.5"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",
@@ -47,15 +43,15 @@
     "bunyan": "^1.8.15",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "http-status-codes": "^2.3.0",
     "mongoose": "^8.17.0",
+    "pm2": "^5.4.0",
     "redis": "^5.8.0",
     "socket.io": "^4.8.1",
     "swagger-stats": "^0.99.7",
-    "ws": "^8.18.3",
-    "pm2": "^5.4.0",
-    "cross-env": "^7.0.3"
+    "ws": "^8.18.3"
   }
 }

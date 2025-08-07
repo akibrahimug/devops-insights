@@ -17,18 +17,17 @@
     "pretty": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
-    // Note: To transform paths for both the output .js and .d.ts files, you need both of the below entries
+    // Note: To transform paths for both the output
     "plugins": [
       // Transform paths in output .js files
-      { "transform": "typescript-transform-paths" },
-
-      // Transform paths in output .d.ts files (Include this line if you output declarations files)
-      { "transform": "typescript-transform-paths", "afterDeclarations": true }
+      { "transform": "typescript-transform-paths" }
     ],
+
     "paths": {
       "@root/*": ["src/*"],
       "@global/*": ["src/shared/globals/*"],
       "@services/*": ["src/shared/services/*"]
     }
-  }
+  },
+  "exclude": ["node_modules", "dist", "jest.config.ts"]
 }
