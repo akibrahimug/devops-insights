@@ -14,16 +14,9 @@ import { apiPoller } from '@root/services/api-poller';
 import applicationRoutes from '@root/routes';
 import { config } from '@root/config';
 import type { ChangeStream } from 'mongodb';
+import apiRegions from '@root/static/api-regions.json';
 
-const ALLOWED_SOURCES = [
-  'us-east',
-  'eu-west',
-  'eu-central',
-  'us-west',
-  'sa-east',
-  'ap-southeast',
-] as const;
-type Source = (typeof ALLOWED_SOURCES)[number];
+const ALLOWED_SOURCES = apiRegions.allowed_sources as readonly string[];
 
 export class DevopsInsightsServer {
   private app: Application;
