@@ -1,133 +1,147 @@
 /**
- * SIMPLE EXPRESS + WEBSOCKET SERVER FOR EXTERNAL API CONSUMPTION
- *
- * Minimal Express server with WebSocket support for real-time updates.
- * Designed to consume external APIs and broadcast changes to dashboard clients.
- *
- * Key Features:
- * - Express: Health checks and cached data endpoints
- * - WebSocket: Real-time broadcasting of external API changes
- * - Redis: Caching and pub/sub for multi-instance support
+ * DevopsInsightsServer  —  class bootstrap
+ * - Uses Mongo change streams when available.
+ * - Falls back to poller-direct emits when change streams are unavailable.
  */
-import {
-  Application,
-  json,
-  urlencoded,
-  Response,
-  Request,
-  NextFunction,
-} from 'express';
-import cors from 'cors';
-import { config } from '@root/config';
-import Logger from 'bunyan';
-import http from 'http';
-import HTTP_STATUS from 'http-status-codes';
-import apiStates from 'swagger-stats';
+
+import http, { Server as HttpServer } from 'http';
+import express, { Application, json, urlencoded } from 'express';
 import compression from 'compression';
-import { Server } from 'socket.io';
-import { createClient } from 'redis';
-import { createAdapter } from '@socket.io/redis-adapter';
-import applicationRoutes from '@root/routes';
+import { Server as SocketIOServer, Socket } from 'socket.io';
+import mongoose from 'mongoose';
+import { wireMetricChangeStream } from '@root/services/change-streams';
 import { apiPoller } from '@root/services/api-poller';
+import applicationRoutes from '@root/routes';
+import { config } from '@root/config';
+import type { ChangeStream } from 'mongodb';
+import apiRegions from '@root/static/api-regions.json';
 
-// use this port number for development
-//and we will use it in AWS for load balancing and security groups
-const SERVER_PORT = process.env.PORT || 5000;
-const log: Logger = config.createLogger('server');
+const ALLOWED_SOURCES = apiRegions.allowed_sources as readonly string[];
+
 export class DevopsInsightsServer {
-  // express instance
   private app: Application;
-  //   use the express instance to create the app
-  constructor(app: Application) {
-    this.app = app;
+  private server!: HttpServer;
+  private io!: SocketIOServer;
+  private metricCS?: ChangeStream;
+  private started = false;
+
+  private readonly port = Number(config.SERVER_PORT || 5000);
+  private readonly mongoUrl = config.DATABASE_URL!;
+  private readonly apiName = (
+    config.EXTERNAL_API_NAME || 'upscope'
+  ).toLowerCase();
+
+  constructor(app?: Application) {
+    this.app = app ?? express();
   }
 
-  public start(): void {
-    this.standardMiddleware(this.app);
-    this.routesMiddleware(this.app);
-    this.apiMonitoring(this.app);
-    this.startServer(this.app);
+  /* ---------- public ---------- */
+
+  public async start() {
+    if (this.started) return;
+    await this.connectMongo();
+    this.createHttpAndSockets();
+    this.configureMiddleware();
+    this.configureSocketRooms();
+
+    if (await this.changeStreamsAvailable()) {
+      this.metricCS = wireMetricChangeStream(this.io, this.apiName);
+    } else {
+      console.warn('Change streams unavailable → using direct poller emits');
+      apiPoller.setSocketIO(this.io);
+      apiPoller.enableDirectEmit();
+    }
+
+    await apiPoller.startPolling();
+    applicationRoutes(this.app);
+    await this.listen();
+    this.installSignals();
+    this.started = true;
   }
 
-  // moniter the api using swagger-stats in the browser
-  private apiMonitoring(app: Application): void {
-    app.use(
-      apiStates.getMiddleware({
-        uriPath: '/api-monitoring',
-      }),
-    );
-  }
-
-  // manage all the routes
-  private routesMiddleware(app: Application): void {
-    applicationRoutes(app);
-  }
-
-  //   catch all errors
-
-  private async startServer(app: Application): Promise<void> {
+  public async stop() {
+    if (!this.started) return;
+    this.started = false;
     try {
-      const httpServer: http.Server = new http.Server(app);
-      const socketIO: Server = await this.createSocketIO(httpServer);
-      this.startHttpServer(httpServer);
-      this.socketIOCOnnections(socketIO);
+      await this.metricCS?.close();
+      } catch (err) {
+     console.error('Error closing change stream:', err);
+    }
+    apiPoller.stopPolling();
+    await new Promise<void>((r) => this.io?.close(() => r()));
+    await new Promise<void>((r) => this.server?.close(() => r()));
+    await mongoose.disconnect();
+  }
 
-      // Link WebSocket server to API poller for real-time updates
-      // log the socket io
-      log.info('Socket IO created and connected to the api poller...');
-      apiPoller.setSocketIO(socketIO);
-    } catch (e) {
-      log.error(e);
+  /* ---------- internals ---------- */
+
+  private async connectMongo() {
+    await mongoose.connect(this.mongoUrl);
+  }
+
+  private async changeStreamsAvailable(): Promise<boolean> {
+    const db = mongoose.connection.db;
+    if (!db) return false;
+
+    try {
+      await db.admin().command({ replSetGetStatus: 1 });
+      return true; // replica set → change streams OK
+    } catch {
+      return false; // standalone → fallback to directEmit
     }
   }
 
-  //   standard middleware
-  private standardMiddleware(app: Application): void {
-    app.use(compression());
-    app.use(
-      json({
-        limit: '50mb',
-      }),
-    );
-    app.use(
-      urlencoded({
-        extended: true,
-        limit: '50mb',
-      }),
-    );
-  }
-
-  //   create socket io
-  private async createSocketIO(httpServer: http.Server): Promise<Server> {
-    const io: Server = new Server(httpServer, {
-      cors: {
-        origin: config.CLIENT_URL,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      },
-    });
-    const pubClient = createClient({ url: config.REDIS_HOST });
-    const subClient = pubClient.duplicate();
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-    io.adapter(createAdapter(pubClient, subClient));
-    return io;
-  }
-
-  //   start the http server
-  private startHttpServer(httpServer: http.Server): void {
-    log.info(`Worker has started with id of ${process.pid}`);
-    log.info(`Server has started with process ${process.pid}`);
-    httpServer.listen(SERVER_PORT, () => {
-      log.info(`Server started on port ${SERVER_PORT}`);
-
-      // Start polling external APIs
-      apiPoller.startPolling();
-      log.info('External API polling started');
+  private createHttpAndSockets() {
+    this.server = http.createServer(this.app);
+    this.io = new SocketIOServer(this.server, {
+      cors: { origin: '*', methods: ['GET', 'POST'] },
     });
   }
 
-  private socketIOCOnnections(io: Server): void {
-    log.info('WebSocket server started, waiting for connections...');
+  private configureMiddleware() {
+    this.app.use(compression());
+    this.app.use(json({ limit: '50mb' }));
+    this.app.use(urlencoded({ extended: true, limit: '50mb' }));
+  }
 
-    // We shall add the socket io connections here that we describe in the shared/sockets
+  private configureSocketRooms() {
+    const room = (s: Source) => `metrics:${this.apiName}:${s}`;
+
+    this.io.on('connection', (socket: Socket) => {
+      socket.on('metrics:subscribe', ({ source }) => {
+        const src = (source || '').toLowerCase() as Source;
+        if (!ALLOWED_SOURCES.includes(src))
+          return socket.emit('error', {
+            message: 'Invalid source',
+            allowed: ALLOWED_SOURCES,
+          });
+        socket.join(room(src));
+      });
+
+      socket.on('metrics:unsubscribe', ({ source }) => {
+        const src = (source || '').toLowerCase() as Source;
+        if (ALLOWED_SOURCES.includes(src)) socket.leave(room(src));
+      });
+    });
+  }
+
+  private async listen() {
+    await new Promise<void>((r) =>
+      this.server.listen(this.port, () => {
+        console.log(`Server listening on port ${this.port}`);
+        r();
+      }),
+    );
+  }
+
+  private installSignals() {
+    const shutdown = (sig: string) => {
+      console.log(`Received ${sig}. Graceful shutdown…`);
+      this.stop()
+        .then(() => process.exit(0))
+        .catch(() => process.exit(1));
+    };
+    process.once('SIGINT', () => shutdown('SIGINT'));
+    process.once('SIGTERM', () => shutdown('SIGTERM'));
   }
 }
