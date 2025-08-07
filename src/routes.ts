@@ -5,21 +5,20 @@
  * All real-time updates are handled via WebSockets.
  *
  * Architecture:
- * - Express: Basic health/status endpoints and cached data serving
- * - WebSockets: Real-time updates when external API data changes
- * - Redis: Cache for external API responses (Upscope, etc.)
+ * - Express: Basic health/status endpoints ONLY (metrics moved to WebSocket)
+ * - WebSockets: Real-time updates AND initial data loading
+ * - Redis: Cache for external API responses
  */
 
 import { Application, Request, Response } from 'express';
 import { config } from '@root/config';
-import { apiPoller } from '@root/services/api-poller';
 import Logger from 'bunyan';
-import { MetricLatest } from './models/Metric.models';
+import { MetricLatest } from '@root/shared/services/db/models/Metric.models';
 import apiRegions from '@root/static/api-regions.json';
 
 const log: Logger = config.createLogger('routes');
 const BASE_PATH = '/api/v1';
-const apiName = (config.EXTERNAL_API_NAME || 'upscope').toLowerCase();
+const apiName = (config.EXTERNAL_API_NAME || '').toLowerCase();
 const ALLOWED_SOURCES = apiRegions.allowed_sources as Array<string>;
 type Source = (typeof ALLOWED_SOURCES)[number];
 
@@ -34,6 +33,8 @@ export default (app: Application) => {
     });
   });
 
+  // DISABLED: HTTP metrics endpoints - use WebSocket instead
+  /*
   // Get cached metrics from Redis (populated by external API polling)
   app.get(`${BASE_PATH}/metrics`, async (req: Request, res: Response) => {
     try {
@@ -67,7 +68,7 @@ export default (app: Application) => {
     }
   });
 
-  // Get specific external API data (e.g., /api/metrics/upscope)
+  // Get specific external API data (e.g., /api/metrics/)
   app.get(
     `${BASE_PATH}/metrics/:source`,
     async (req: Request, res: Response) => {
@@ -93,6 +94,37 @@ export default (app: Application) => {
       }
     },
   );
+  */
+
+  // HTTP endpoint returns redirect to WebSocket for metrics
+  app.get(`${BASE_PATH}/metrics`, (req: Request, res: Response) => {
+    res.status(426).json({
+      error: 'Metrics data only available via WebSocket',
+      websocket_url: '/socket.io/',
+      instructions: {
+        connect: 'Connect to WebSocket server',
+        get_data: 'socket.emit("metrics:get", { source?: "us-east" })',
+        listen: 'socket.on("metrics:data", (data) => { ... })',
+        subscribe: 'socket.emit("metrics:subscribe", { source: "us-east" })',
+        updates: 'socket.on("metrics-update", (data) => { ... })',
+      },
+    });
+  });
+
+  app.get(`${BASE_PATH}/metrics/:source`, (req: Request, res: Response) => {
+    res.status(426).json({
+      error: 'Metrics data only available via WebSocket',
+      websocket_url: '/socket.io/',
+      source: req.params.source,
+      instructions: {
+        connect: 'Connect to WebSocket server',
+        get_data: `socket.emit("metrics:get", { source: "${req.params.source}" })`,
+        listen: 'socket.on("metrics:data", (data) => { ... })',
+        subscribe: `socket.emit("metrics:subscribe", { source: "${req.params.source}" })`,
+        updates: 'socket.on("metrics-update", (data) => { ... })',
+      },
+    });
+  });
 
   // Basic system info
   app.get(`${BASE_PATH}/info`, (req: Request, res: Response) => {
@@ -100,6 +132,7 @@ export default (app: Application) => {
       version: '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       websocket_enabled: true,
+      websocket_only_metrics: true,
       redis_enabled: false,
       external_apis: [apiName],
     });
