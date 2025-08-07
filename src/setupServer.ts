@@ -113,6 +113,7 @@ export class DevopsInsightsServer {
     const room = (s: Source) => `metrics:${this.apiName}:${s}`;
 
     this.io.on('connection', (socket: Socket) => {
+      // Existing subscription handlers
       socket.on('metrics:subscribe', ({ source }) => {
         const src = (source || '').toLowerCase() as Source;
         if (!ALLOWED_SOURCES.includes(src))
@@ -126,6 +127,57 @@ export class DevopsInsightsServer {
       socket.on('metrics:unsubscribe', ({ source }) => {
         const src = (source || '').toLowerCase() as Source;
         if (ALLOWED_SOURCES.includes(src)) socket.leave(room(src));
+      });
+
+      // NEW: Get initial data via WebSocket
+      socket.on('metrics:get', async ({ source }) => {
+        try {
+          const { MetricLatest } = await import(
+            '@root/shared/services/db/models/Metric.models'
+          );
+
+          if (source) {
+            const src = (source || '').toLowerCase() as Source;
+            if (!ALLOWED_SOURCES.includes(src)) {
+              return socket.emit('metrics:error', {
+                message: 'Invalid source',
+                allowed: ALLOWED_SOURCES,
+              });
+            }
+
+            const doc = await MetricLatest.findOne({
+              api: this.apiName,
+              source: src,
+            }).lean();
+            if (!doc) {
+              return socket.emit('metrics:error', {
+                message: 'No data yet for this source',
+              });
+            }
+
+            socket.emit('metrics:data', {
+              api: this.apiName,
+              source: src,
+              data: doc.data,
+              updatedAt: doc.updatedAt,
+            });
+          } else {
+            // Get all sources
+            const rows = await MetricLatest.find({ api: this.apiName }).lean();
+            const out: Record<string, unknown> = {};
+            rows.forEach((r: any) => {
+              out[r.source] = r.data;
+            });
+
+            socket.emit('metrics:data', {
+              api: this.apiName,
+              data: out,
+              count: rows.length,
+            });
+          }
+        } catch (error) {
+          socket.emit('metrics:error', { message: 'Failed to fetch metrics' });
+        }
       });
     });
   }
