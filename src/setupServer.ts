@@ -64,7 +64,9 @@ export class DevopsInsightsServer {
     this.started = false;
     try {
       await this.metricCS?.close();
-    } catch {}
+      } catch (err) {
+     console.error('Error closing change stream:', err);
+    }
     apiPoller.stopPolling();
     await new Promise<void>((r) => this.io?.close(() => r()));
     await new Promise<void>((r) => this.server?.close(() => r()));
