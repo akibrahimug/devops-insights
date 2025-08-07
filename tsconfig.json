@@ -28,7 +28,7 @@
     "paths": {
       "@root/*": ["src/*"],
       "@global/*": ["src/shared/globals/*"],
-      "@service/*": ["src/shared/services/*"]
+      "@services/*": ["src/shared/services/*"]
     }
   }
 }
