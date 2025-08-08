@@ -5,7 +5,8 @@ FROM node:18-alpine AS base
 WORKDIR /app
 
 # Copy package files for dependency installation
-COPY package.json yarn.lock ./
+COPY package.json ./
+COPY yarn.lock ./
 
 # Install dependencies using yarn (as indicated by yarn.lock presence)
 RUN yarn install --frozen-lockfile --production=false
@@ -29,7 +30,8 @@ RUN npm install -g pm2
 WORKDIR /app
 
 # Copy package files
-COPY package.json yarn.lock ./
+COPY package.json ./
+COPY yarn.lock ./
 
 # Install only production dependencies
 RUN yarn install --frozen-lockfile --production=true && yarn cache clean
