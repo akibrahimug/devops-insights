@@ -31,7 +31,7 @@ class Config {
   public REDIS_HOST: string | undefined;
   public EXTERNAL_API_NAME: string | undefined;
   public REDIS_REQUIRED: string | undefined;
-  public SERVER_PORT: number | undefined;
+  public PORT: number | undefined;
   // Default MongoDB connection string for local development environment
   private readonly DEFAULT_DATABASE_URL =
     'mongodb://127.0.0.1:27017/devops-insights';
@@ -44,7 +44,7 @@ class Config {
     this.REDIS_HOST = process.env.REDIS_HOST || '';
     this.EXTERNAL_API_NAME = process.env.EXTERNAL_API_NAME || '';
     this.REDIS_REQUIRED = process.env.REDIS_REQUIRED || '';
-    this.SERVER_PORT = parseInt(process.env.SERVER_PORT || '5000');
+    this.PORT = parseInt(process.env.PORT || '5000');
   }
 
   /**

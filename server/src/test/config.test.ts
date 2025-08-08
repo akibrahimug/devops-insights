@@ -38,7 +38,7 @@ describe('Config', () => {
     expect(config.REDIS_HOST).toBe('redis://localhost:6379');
     expect(config.EXTERNAL_API_NAME).toBeDefined();
     expect(typeof config.EXTERNAL_API_NAME).toBe('string');
-    expect(config.SERVER_PORT).toBe(5001);
+    expect(config.PORT).toBe(5001);
   });
 
   it('should create bunyan logger with correct configuration', () => {
@@ -57,7 +57,7 @@ describe('Config', () => {
     expect(() => config.validate()).not.toThrow();
     expect(config).toHaveProperty('DATABASE_URL');
     expect(config).toHaveProperty('NODE_ENV');
-    expect(config).toHaveProperty('SERVER_PORT');
+    expect(config).toHaveProperty('PORT');
     expect(typeof config.createLogger).toBe('function');
     expect(typeof config.validate).toBe('function');
   });

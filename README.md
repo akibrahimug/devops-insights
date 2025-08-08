@@ -94,7 +94,7 @@ The backend follows a **hybrid communication strategy**:
    ```bash
    # Create .env file with:
    DATABASE_URL=mongodb://127.0.0.1:27017/devops-insights
-   SERVER_PORT=5000
+   PORT=5000
    NODE_ENV=development
    EXTERNAL_API_NAME=your-api-name
    ```

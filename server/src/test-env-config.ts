@@ -7,7 +7,7 @@
 
 // Set up test environment variables
 process.env.NODE_ENV = 'test';
-process.env.SERVER_PORT = '5001';
+process.env.PORT = '5001';
 process.env.CLIENT_URL = 'http://localhost:3000';
 process.env.REDIS_HOST = 'redis://localhost:6379';
 process.env.EXTERNAL_API_NAME = 'testapi';

@@ -103,7 +103,7 @@ The DevOps Insights Dashboard is built with a hybrid architecture that combines 
 
    # Edit with your configuration
    DATABASE_URL=mongodb://127.0.0.1:27017/devops-insights
-   SERVER_PORT=5000
+   PORT=5000
    NODE_ENV=development
    REDIS_HOST=redis://localhost:6379
    EXTERNAL_API_NAME=your-api-name
@@ -373,7 +373,7 @@ yarn test --watch
 NODE_ENV=production
 DATABASE_URL=mongodb://your-production-db/devops-insights
 REDIS_HOST=redis://your-redis-cluster
-SERVER_PORT=5000
+PORT=5000
 CLIENT_URL=https://your-dashboard-domain.com
 ```
 
