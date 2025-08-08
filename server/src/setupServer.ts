@@ -26,7 +26,7 @@ export class DevopsInsightsServer {
   private metricCS?: ChangeStream;
   private started = false;
 
-  private readonly port = Number(config.SERVER_PORT || 5000);
+  private readonly port = Number(config.PORT || 5000);
   private readonly mongoUrl = config.DATABASE_URL!;
   private readonly apiName = (config.EXTERNAL_API_NAME || '').toLowerCase();
 

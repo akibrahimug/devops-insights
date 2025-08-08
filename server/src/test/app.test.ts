@@ -35,7 +35,7 @@ describe('Application Module', () => {
   it('should load configuration successfully', () => {
     expect(config).toBeDefined();
     expect(config.DATABASE_URL).toBeDefined();
-    expect(config.SERVER_PORT).toBeDefined();
+    expect(config.PORT).toBeDefined();
     expect(config.EXTERNAL_API_NAME).toBeDefined();
   });
 
