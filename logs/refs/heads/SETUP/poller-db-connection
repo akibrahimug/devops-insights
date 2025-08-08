@@ -1,5 +1,0 @@
-0000000000000000000000000000000000000000 9ada5f35da6711b5b5039bd49d65e911d467ba03 kasoma <kasomaibrahim@gmail.com> 1754515013 +0100	branch: Created from HEAD
-9ada5f35da6711b5b5039bd49d65e911d467ba03 b8589f15a4cc8e1ab5cdb635ce3d15d15afbbc91 kasoma <kasomaibrahim@gmail.com> 1754566828 +0100	commit: replacing redis live updates with db with replica set mongo
-b8589f15a4cc8e1ab5cdb635ce3d15d15afbbc91 9ada5f35da6711b5b5039bd49d65e911d467ba03 kasoma <kasomaibrahim@gmail.com> 1754566870 +0100	reset: moving to HEAD~1
-9ada5f35da6711b5b5039bd49d65e911d467ba03 b8589f15a4cc8e1ab5cdb635ce3d15d15afbbc91 kasoma <kasomaibrahim@gmail.com> 1754566997 +0100	reset: moving to HEAD@{1}
-b8589f15a4cc8e1ab5cdb635ce3d15d15afbbc91 1cf3d1d300d07ba8f709c908c45d19cf4d7824d3 kasoma <kasomaibrahim@gmail.com> 1754567373 +0100	commit: replacing redis live updates with db with replica set mongo
