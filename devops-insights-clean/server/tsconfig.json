@@ -1,0 +1,33 @@
+{
+  // TYPESCRIPT CONFIGURATION FOR DEVOPS INSIGHTS DASHBOARD BACKEND
+  // This configuration file sets up TypeScript compilation settings for the backend server.
+  // It enables strict type checking, ES6 target compilation, CommonJS modules for Node.js compatibility,
+  // and sets up path mapping for clean imports using @root/* aliases pointing to the src directory.
+  // The output is compiled to the dist/ directory with source maps for debugging.
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "pretty": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    // Note: To transform paths for both the output
+    "plugins": [
+      // Transform paths in output .js files
+      { "transform": "typescript-transform-paths" }
+    ],
+
+    "paths": {
+      "@root/*": ["src/*"],
+      "@global/*": ["src/shared/globals/*"],
+      "@services/*": ["src/shared/services/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "jest.config.ts"]
+}

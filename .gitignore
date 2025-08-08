@@ -1,0 +1,9 @@
+# Never commit Git internals accidentally copied into the work-tree
+/objects/
+/logs/
+/refs/
+index
+index.lock
+COMMIT_EDITMSG
+FETCH_HEAD
+ORIG_HEAD
