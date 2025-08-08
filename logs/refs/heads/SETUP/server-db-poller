@@ -1,0 +1,3 @@
+0000000000000000000000000000000000000000 5d408ef8452fc970919627e24e754962644584c2 kasoma <kasomaibrahim@gmail.com> 1754512266 +0100	branch: Created from HEAD
+5d408ef8452fc970919627e24e754962644584c2 ec5339d0078d01914d6cd65b80dd1e478852569d kasoma <kasomaibrahim@gmail.com> 1754512320 +0100	commit: implemented the db, server, and poller setup
+ec5339d0078d01914d6cd65b80dd1e478852569d 22288d394a6f4bcae97080afe8ed8a2da03b0d92 kasoma <kasomaibrahim@gmail.com> 1754514169 +0100	commit: implemented the db, server, and poller setup

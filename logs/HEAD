@@ -1,0 +1,31 @@
+0000000000000000000000000000000000000000 4f1234f7bc629cfd0319b2b616066156b828c2f4 kasoma <kasomaibrahim@gmail.com> 1754478602 +0100	commit (initial): first commit
+0000000000000000000000000000000000000000 0000000000000000000000000000000000000000 kasoma <kasomaibrahim@gmail.com> 1754478602 +0100	Branch: renamed refs/heads/master to refs/heads/master
+4f1234f7bc629cfd0319b2b616066156b828c2f4 4f1234f7bc629cfd0319b2b616066156b828c2f4 kasoma <kasomaibrahim@gmail.com> 1754478602 +0100	Branch: renamed refs/heads/master to refs/heads/master
+4f1234f7bc629cfd0319b2b616066156b828c2f4 b49ef7473ffe7ec540be1e294c7343acb33e968c kasoma <kasomaibrahim@gmail.com> 1754478650 +0100	commit: initial commit with manifesto
+b49ef7473ffe7ec540be1e294c7343acb33e968c 5d408ef8452fc970919627e24e754962644584c2 kasoma <kasomaibrahim@gmail.com> 1754478682 +0100	commit: initial commit with manifesto
+5d408ef8452fc970919627e24e754962644584c2 5d408ef8452fc970919627e24e754962644584c2 kasoma <kasomaibrahim@gmail.com> 1754512047 +0100	reset: moving to HEAD
+5d408ef8452fc970919627e24e754962644584c2 5d408ef8452fc970919627e24e754962644584c2 kasoma <kasomaibrahim@gmail.com> 1754512266 +0100	checkout: moving from master to SETUP/server-db-poller
+5d408ef8452fc970919627e24e754962644584c2 ec5339d0078d01914d6cd65b80dd1e478852569d kasoma <kasomaibrahim@gmail.com> 1754512320 +0100	commit: implemented the db, server, and poller setup
+ec5339d0078d01914d6cd65b80dd1e478852569d 22288d394a6f4bcae97080afe8ed8a2da03b0d92 kasoma <kasomaibrahim@gmail.com> 1754514169 +0100	commit: implemented the db, server, and poller setup
+22288d394a6f4bcae97080afe8ed8a2da03b0d92 5d408ef8452fc970919627e24e754962644584c2 kasoma <kasomaibrahim@gmail.com> 1754514949 +0100	checkout: moving from SETUP/server-db-poller to master
+5d408ef8452fc970919627e24e754962644584c2 9ada5f35da6711b5b5039bd49d65e911d467ba03 kasoma <kasomaibrahim@gmail.com> 1754514953 +0100	pull: Fast-forward
+9ada5f35da6711b5b5039bd49d65e911d467ba03 9ada5f35da6711b5b5039bd49d65e911d467ba03 kasoma <kasomaibrahim@gmail.com> 1754515013 +0100	checkout: moving from master to SETUP/poller-db-connection
+9ada5f35da6711b5b5039bd49d65e911d467ba03 b8589f15a4cc8e1ab5cdb635ce3d15d15afbbc91 kasoma <kasomaibrahim@gmail.com> 1754566828 +0100	commit: replacing redis live updates with db with replica set mongo
+b8589f15a4cc8e1ab5cdb635ce3d15d15afbbc91 9ada5f35da6711b5b5039bd49d65e911d467ba03 kasoma <kasomaibrahim@gmail.com> 1754566870 +0100	reset: moving to HEAD~1
+9ada5f35da6711b5b5039bd49d65e911d467ba03 b8589f15a4cc8e1ab5cdb635ce3d15d15afbbc91 kasoma <kasomaibrahim@gmail.com> 1754566997 +0100	reset: moving to HEAD@{1}
+b8589f15a4cc8e1ab5cdb635ce3d15d15afbbc91 1cf3d1d300d07ba8f709c908c45d19cf4d7824d3 kasoma <kasomaibrahim@gmail.com> 1754567373 +0100	commit: replacing redis live updates with db with replica set mongo
+1cf3d1d300d07ba8f709c908c45d19cf4d7824d3 1cf3d1d300d07ba8f709c908c45d19cf4d7824d3 kasoma <kasomaibrahim@gmail.com> 1754567775 +0100	checkout: moving from SETUP/poller-db-connection to TEST/server-unit-tests
+1cf3d1d300d07ba8f709c908c45d19cf4d7824d3 b67565437d3a866163a6f32daa16cef9867c6c95 kasoma <kasomaibrahim@gmail.com> 1754585467 +0100	commit: adding tests upto 7% coverage, scaling and readme docs
+b67565437d3a866163a6f32daa16cef9867c6c95 ce352ece79030a2ca36f0cfd66d263ef6766460e kasoma <kasomaibrahim@gmail.com> 1754586063 +0100	commit: adding tests upto 7% coverage, scaling and readme docs
+ce352ece79030a2ca36f0cfd66d263ef6766460e 9ada5f35da6711b5b5039bd49d65e911d467ba03 kasoma <kasomaibrahim@gmail.com> 1754587130 +0100	checkout: moving from TEST/server-unit-tests to master
+9ada5f35da6711b5b5039bd49d65e911d467ba03 d075d3988f8ebf9ce490ef82a7e4e4179f343eb9 kasoma <kasomaibrahim@gmail.com> 1754587134 +0100	pull: Fast-forward
+d075d3988f8ebf9ce490ef82a7e4e4179f343eb9 d075d3988f8ebf9ce490ef82a7e4e4179f343eb9 kasoma <kasomaibrahim@gmail.com> 1754587180 +0100	checkout: moving from master to FEATURE/ci-cd-workflow
+d075d3988f8ebf9ce490ef82a7e4e4179f343eb9 3b7832f6b4810d292c8057c7a1701ae8a52f1524 kasoma <kasomaibrahim@gmail.com> 1754588652 +0100	commit: adding and setting up deployment to gcp
+3b7832f6b4810d292c8057c7a1701ae8a52f1524 8ace959b7a3cc887652ca52f206d10e64c76c88b kasoma <kasomaibrahim@gmail.com> 1754590723 +0100	commit: adding and
+8ace959b7a3cc887652ca52f206d10e64c76c88b b1ace6590c9ca7c2ab2cc318e2c6212ca0e34766 kasoma <kasomaibrahim@gmail.com> 1754592185 +0100	commit: fixing some deployment errors
+b1ace6590c9ca7c2ab2cc318e2c6212ca0e34766 b1ace6590c9ca7c2ab2cc318e2c6212ca0e34766 kasoma <kasomaibrahim@gmail.com> 1754592631 +0100	reset: moving to HEAD
+b1ace6590c9ca7c2ab2cc318e2c6212ca0e34766 d075d3988f8ebf9ce490ef82a7e4e4179f343eb9 kasoma <kasomaibrahim@gmail.com> 1754592635 +0100	checkout: moving from FEATURE/ci-cd-workflow to master
+d075d3988f8ebf9ce490ef82a7e4e4179f343eb9 1bcc83483c76019a76223af44165e23930abb4c8 kasoma <kasomaibrahim@gmail.com> 1754592640 +0100	pull: Fast-forward
+1bcc83483c76019a76223af44165e23930abb4c8 daf4306c986168138396b52425cce0e7d076cdf7 kasoma <kasomaibrahim@gmail.com> 1754592650 +0100	commit: fixing some deployment errors
+daf4306c986168138396b52425cce0e7d076cdf7 1b826a03f564d3979b79230334dc7c44bcb636e3 kasoma <kasomaibrahim@gmail.com> 1754592905 +0100	commit: fixing some deployment errors
+1b826a03f564d3979b79230334dc7c44bcb636e3 1b826a03f564d3979b79230334dc7c44bcb636e3 kasoma <kasomaibrahim@gmail.com> 1754593386 +0100	checkout: moving from master to MAJOR/fix-folder-structure

@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 d075d3988f8ebf9ce490ef82a7e4e4179f343eb9 kasoma <kasomaibrahim@gmail.com> 1754587180 +0100	branch: Created from HEAD
+d075d3988f8ebf9ce490ef82a7e4e4179f343eb9 3b7832f6b4810d292c8057c7a1701ae8a52f1524 kasoma <kasomaibrahim@gmail.com> 1754588652 +0100	commit: adding and setting up deployment to gcp
+3b7832f6b4810d292c8057c7a1701ae8a52f1524 8ace959b7a3cc887652ca52f206d10e64c76c88b kasoma <kasomaibrahim@gmail.com> 1754590723 +0100	commit: adding and
+8ace959b7a3cc887652ca52f206d10e64c76c88b b1ace6590c9ca7c2ab2cc318e2c6212ca0e34766 kasoma <kasomaibrahim@gmail.com> 1754592185 +0100	commit: fixing some deployment errors

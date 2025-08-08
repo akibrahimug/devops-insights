@@ -1,0 +1,33 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+	worktree = .
+[remote "origin"]
+	url = https://github.com/akibrahimug/devops-insights.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "master"]
+	remote = origin
+	merge = refs/heads/master
+	vscode-merge-base = origin/master
+[branch "SETUP/server-db-poller"]
+	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/SETUP/server-db-poller
+[branch "SETUP/poller-db-connection"]
+	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/SETUP/poller-db-connection
+[branch "TEST/server-unit-tests"]
+	vscode-merge-base = origin/SETUP/poller-db-connection
+	remote = origin
+	merge = refs/heads/TEST/server-unit-tests
+[branch "FEATURE/ci-cd-workflow"]
+	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/FEATURE/ci-cd-workflow
+[branch "MAJOR/fix-folder-structure"]
+	vscode-merge-base = origin/master
