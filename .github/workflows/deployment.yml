@@ -70,5 +70,4 @@ jobs:
             --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             --set-env-vars="EXTERNAL_API_NAME=${{ secrets.EXTERNAL_API_NAME }}" \
             --set-env-vars="CLIENT_URL=*" \
-            --set-env-vars="REDIS_REQUIRED=false" \
-            --update-env-vars="PORT=5000"
+            --set-env-vars="REDIS_REQUIRED=false" 
