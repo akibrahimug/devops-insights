@@ -3,6 +3,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+# Note: yarn.lock should NOT be ignored - it's needed for reproducible builds
 
 # Build outputs
 dist/
