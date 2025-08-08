@@ -31,19 +31,29 @@ export interface WebSocketState {
   unsubscribeFromSource: (source: string) => void;
   getInitialData: (source?: string) => void;
 }
+// WebSocketContext is a context that provides the socket connection and the metrics data
+// It is used to subscribe to and unsubscribe from metrics for a given source
+// It is used to get the initial data for a given source
+// It is used to store the last update time for the metrics
+// It is used to store the error message if the connection fails
 
+// Define the context
 const WebSocketContext = createContext<WebSocketState | null>(null);
 
+// Get the backend URL from the environment variables
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+// Define the WebSocketProvider component
 export function WebSocketProvider({ children }: { children: ReactNode }) {
+  // Define the state variables (socket, isConnected, metrics, lastUpdate, error)
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [metrics, setMetrics] = useState<Record<string, MetricData>>({});
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Use effect to initialize the socket connection
   useEffect(() => {
     // Initialize Socket.IO connection
     const newSocket = io(BACKEND_URL, {
@@ -61,11 +71,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       setError(null);
     });
 
+    // Disconnect event handler
     newSocket.on("disconnect", (reason) => {
       console.log("Disconnected from backend:", reason);
       setIsConnected(false);
     });
 
+    // Connection error event handler
     newSocket.on("connect_error", (err) => {
       console.error("Connection error:", err);
       setError(`Connection failed: ${err.message}`);
@@ -76,21 +88,24 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     newSocket.on("metrics:data", (data: MetricsResponse) => {
       console.log("Received metrics data:", data);
 
+      // If the data has a source, update the metrics for that source
       if (data.source) {
-        // Single source data
+        // Single source data (e.g. a single server)
         setMetrics((prev) => ({
           ...prev,
           [data.source!]: data.data as MetricData,
         }));
       } else {
-        // All sources data
+        // All sources data (e.g. all servers)
         setMetrics(data.data as Record<string, MetricData>);
       }
 
+      // Update the last update time and clear the error
       setLastUpdate(new Date());
       setError(null);
     });
 
+    // Metrics error event handler
     newSocket.on("metrics:error", (err: { message: string }) => {
       console.error("Metrics error:", err);
       setError(err.message);
@@ -100,23 +115,28 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     newSocket.on("metrics-update", (data: MetricsResponse) => {
       console.log("Received real-time metrics update:", data);
 
+      // If the data has a source, update the metrics for that source
       if (data.source) {
+        // Single source data (e.g. a single server)
         setMetrics((prev) => ({
           ...prev,
           [data.source!]: data.data as MetricData,
         }));
+        // Update the last update time
         setLastUpdate(new Date());
       }
     });
 
+    // Set the socket
     setSocket(newSocket);
 
-    // Cleanup on unmount
+    // Cleanup on unmount (close the socket)
     return () => {
       newSocket.close();
     };
   }, []);
 
+  // Subscribe to metrics for a given source
   const subscribeToSource = (source: string) => {
     if (socket && isConnected) {
       console.log(`Subscribing to metrics for source: ${source}`);
@@ -124,6 +144,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Unsubscribe from metrics for a given source
   const unsubscribeFromSource = (source: string) => {
     if (socket && isConnected) {
       console.log(`Unsubscribing from metrics for source: ${source}`);
@@ -131,17 +152,21 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Get the initial data for a given source
   const getInitialData = (source?: string) => {
+    // If the socket is connected, emit the request to get the initial data
     if (socket && isConnected) {
       console.log(
         `Requesting initial data${
           source ? ` for source: ${source}` : " for all sources"
         }`
       );
+      // Emit the request to get the initial data
       socket.emit("metrics:get", source ? { source } : {});
     }
   };
 
+  // Define the value of the context (socket, isConnected, metrics, lastUpdate, error, subscribeToSource, unsubscribeFromSource, getInitialData)
   const value: WebSocketState = {
     socket,
     isConnected,
@@ -153,6 +178,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     getInitialData,
   };
 
+  // Return the context provider with the value
   return (
     <WebSocketContext.Provider value={value}>
       {children}
@@ -160,8 +186,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Use the context in the app
 export function useWebSocket() {
   const context = useContext(WebSocketContext);
+  // If the context is not found, throw an error
   if (!context) {
     throw new Error("useWebSocket must be used within a WebSocketProvider");
   }
