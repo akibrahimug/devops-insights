@@ -125,8 +125,8 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
-# yarn v3
-yarn.lock
+# yarn v3 - Note: yarn.lock should be committed for reproducible builds
+# yarn.lock  # REMOVED - yarn.lock should be tracked in git
 .pnp.*
 .yarn/*
 !.yarn/patches
