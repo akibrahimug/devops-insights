@@ -66,4 +66,9 @@ jobs:
             --allow-unauthenticated \
             --memory=512Mi \
             --port=5000 \
-            --set-env-vars=DATABASE_URL=${{ secrets.DATABASE_URL }},EXTERNAL_API_NAME=${{ secrets.EXTERNAL_API_NAME }}
+            --set-env-vars="NODE_ENV=production" \
+            --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            --set-env-vars="EXTERNAL_API_NAME=${{ secrets.EXTERNAL_API_NAME }}" \
+            --set-env-vars="CLIENT_URL=*" \
+            --set-env-vars="REDIS_REQUIRED=false" \
+            --update-env-vars="PORT=5000"
