@@ -1,1 +1,6 @@
-0f47cc2fd78562ef0d9551da246e43091638d5ae		branch 'MAJOR/fix-folder-structure' of https://github.com/akibrahimug/devops-insights
+9da223b7b0d1859143cc8c0c28184d7f0c1c994a		branch 'MAJOR/fix-folder-structure' of https://github.com/akibrahimug/devops-insights
+b1ace6590c9ca7c2ab2cc318e2c6212ca0e34766	not-for-merge	branch 'FEATURE/ci-cd-workflow' of https://github.com/akibrahimug/devops-insights
+7336abedff41073e7f3beb82ab4e232008aba9de	not-for-merge	branch 'SETUP/poller-db-connection' of https://github.com/akibrahimug/devops-insights
+22288d394a6f4bcae97080afe8ed8a2da03b0d92	not-for-merge	branch 'SETUP/server-db-poller' of https://github.com/akibrahimug/devops-insights
+ce352ece79030a2ca36f0cfd66d263ef6766460e	not-for-merge	branch 'TEST/server-unit-tests' of https://github.com/akibrahimug/devops-insights
+1b826a03f564d3979b79230334dc7c44bcb636e3	not-for-merge	branch 'master' of https://github.com/akibrahimug/devops-insights
