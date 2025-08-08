@@ -31,3 +31,5 @@
 	merge = refs/heads/FEATURE/ci-cd-workflow
 [branch "MAJOR/fix-folder-structure"]
 	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/MAJOR/fix-folder-structure
