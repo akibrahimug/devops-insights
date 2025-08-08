@@ -17,11 +17,6 @@
     "pretty": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
-    // Note: To transform paths for both the output
-    "plugins": [
-      // Transform paths in output .js files
-      { "transform": "typescript-transform-paths" }
-    ],
 
     "paths": {
       "@root/*": ["src/*"],
