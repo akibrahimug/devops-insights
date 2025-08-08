@@ -1,4 +1,3 @@
-# Never commit Git internals accidentally copied into the work-tree
 /objects/
 /logs/
 /refs/
