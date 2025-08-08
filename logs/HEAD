@@ -31,3 +31,4 @@ daf4306c986168138396b52425cce0e7d076cdf7 1b826a03f564d3979b79230334dc7c44bcb636e
 1b826a03f564d3979b79230334dc7c44bcb636e3 1b826a03f564d3979b79230334dc7c44bcb636e3 kasoma <kasomaibrahim@gmail.com> 1754593386 +0100	checkout: moving from master to MAJOR/fix-folder-structure
 1b826a03f564d3979b79230334dc7c44bcb636e3 5470a73e015d26f089b8684f381e463e616fb755 kasoma <kasomaibrahim@gmail.com> 1754648010 +0100	commit: chore: move backend into server folder
 5470a73e015d26f089b8684f381e463e616fb755 0f47cc2fd78562ef0d9551da246e43091638d5ae kasoma <kasomaibrahim@gmail.com> 1754648089 +0100	commit: chore: move backend into server folder
+0f47cc2fd78562ef0d9551da246e43091638d5ae 5b9afb27c9f524ba8436ee007b9803798999b2d0 kasoma <kasomaibrahim@gmail.com> 1754648234 +0100	commit: fix: folder structure
