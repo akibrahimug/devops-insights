@@ -9,18 +9,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CircleIcon } from "@phosphor-icons/react";
-import {
-  formatNumber,
-  getServerHealthStatus,
-  getPerformanceRating,
-} from "@/lib/helpers/utils";
+import { getServerHealthStatus } from "@/lib/helpers/utils";
 
 interface Region {
   name: string;
   displayName: string;
   serverStatus: string;
   serverIssue?: string | null;
-  strictness: number;
+  strictness: boolean;
   version: string;
   roles: string[];
   results: {
@@ -42,7 +38,6 @@ interface Region {
     };
   };
   health: ReturnType<typeof getServerHealthStatus>;
-  performance: ReturnType<typeof getPerformanceRating>;
 }
 
 interface RegionsCardProps {
@@ -50,11 +45,14 @@ interface RegionsCardProps {
 }
 
 export function RegionsCard({ regions }: RegionsCardProps) {
+  const ordered = [...regions].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName)
+  );
   return (
     <Card className="animate-scale-in border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur pb-3">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
-          Regional Health Status
+          Region statistics
         </CardTitle>
         <CardDescription className="text-gray-600 dark:text-gray-400">
           Click on a region to see detailed metrics
@@ -62,7 +60,7 @@ export function RegionsCard({ regions }: RegionsCardProps) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {regions.map((region, index) => (
+          {ordered.map((region, index) => (
             <Link href={`/regions/${region.name}`} key={region.name}>
               <div
                 className={`flex items-center justify-between p-4 border rounded-xl transition-all duration-300 hover:scale-[1.01] hover-lift bg-white dark:border-gray-700 dark:bg-gray-900/40 animate-fade-in ${
@@ -74,7 +72,7 @@ export function RegionsCard({ regions }: RegionsCardProps) {
                 }`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                {/* Left: dot + name + sessions */}
+                {/* Left: dot + name + version */}
                 <div className="flex items-center gap-4">
                   <CircleIcon
                     size={12}
@@ -85,16 +83,31 @@ export function RegionsCard({ regions }: RegionsCardProps) {
                     <div className="text-lg font-semibold text-gray-900 dark:text-white">
                       {region.displayName}
                     </div>
-                    <div className="text-sm text-gray-700 dark:text-gray-400">
-                      {formatNumber(region.results.stats.session)} sessions
+                    <div className="text-sm text-gray-400 dark:text-gray-400">
+                      Version: {region.version}
                     </div>
                   </div>
                 </div>
 
-                {/* Right: latency + server status */}
-                <div className="text-right">
-                  <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                    {Number(region.results.stats.server.wait_time).toFixed(1)}ms
+                {/* Right: roles + server status */}
+                <div className="text-right space-y-1">
+                  <div className="flex flex-col gap-1 items-end">
+                    <div className="text-sm">
+                      <span className="text-gray-500 dark:text-gray-400 font-light">
+                        Roles:
+                      </span>{" "}
+                      <span className="text-gray-900 dark:text-gray-100 font-semibold">
+                        {(region.roles || []).join(", ") || "-"}
+                      </span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-gray-500 dark:text-gray-400 font-light">
+                        Strict:
+                      </span>{" "}
+                      <span className="text-gray-900 dark:text-gray-100 font-semibold">
+                        {region.strictness ? "true" : "false"}
+                      </span>
+                    </div>
                   </div>
                   <div
                     className={`text-sm font-semibold ${region.health.textColor}`}

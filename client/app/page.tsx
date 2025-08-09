@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useMemo } from "react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWebSocket } from "@/app/contexts/WebSocketContext";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MetricChart } from "@/components/charts/MetricChart";
 import { ActiveConnectionsCard } from "@/components/dashboard/ActiveConnectionsCard";
+import { WaitTimeMiniChart } from "@/components/charts/WaitTimeMiniChart";
+import { TimersMiniChart } from "@/components/charts/TimersMiniChart";
+import { OnlineMiniChart } from "@/components/charts/OnlineMiniChart";
 import { CpuCoresCard } from "@/components/dashboard/CpuCoresCard";
 import { CpuLoadComparisonCard } from "@/components/dashboard/CpuLoadComparisonCard";
+
 import {
   RegionsCardSkeleton,
   StatsGridSkeleton,
@@ -22,19 +19,13 @@ import {
 } from "@/components/dashboard/Skeletons";
 import { ThemeToggle } from "@/components/Theme/theme-toggle";
 import { RegionsCard } from "@/components/dashboard/RegionsCard";
+import { MetricMiniCard } from "@/components/dashboard/MetricMiniCard";
 import {
-  PulseIcon,
-  ClockIcon,
   WarningIcon,
   TrendUpIcon,
   ArrowsClockwiseIcon,
   WifiHighIcon,
-  TestTubeIcon,
   CpuIcon,
-  MemoryIcon,
-  HardDriveIcon,
-  LightningIcon,
-  UsersThreeIcon,
   PlugsIcon,
 } from "@phosphor-icons/react";
 import {
@@ -43,15 +34,12 @@ import {
   formatPercentage,
   getServerHealthStatus,
   getMetricColor,
-  getChartColor,
-  parseErrorRate,
-  getPerformanceRating,
 } from "@/lib/helpers/utils";
 
 interface RegionData {
   serverStatus: string;
   serverIssue?: string | null;
-  strictness: number;
+  strictness: boolean;
   version: string;
   roles: string[];
   results: {
@@ -78,7 +66,6 @@ interface Region extends RegionData {
   name: string;
   displayName: string;
   health: ReturnType<typeof getServerHealthStatus>;
-  performance: ReturnType<typeof getPerformanceRating>;
 }
 
 export default function DevOpsDashboard() {
@@ -87,232 +74,126 @@ export default function DevOpsDashboard() {
     isConnected,
     error,
     getInitialData,
-    getHistory,
-    latestTimestamps,
-    history,
     enableLive,
     disableLive,
   } = useWebSocket();
   const [regions, setRegions] = useState<Region[]>([]);
-  const [globalHistoricalData, setGlobalHistoricalData] = useState<any>({
-    labels: [],
-    datasets: [],
-  });
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<"latest" | "history">("latest");
-  const [activeRange, setActiveRange] = useState<
-    "1m" | "30m" | "1h" | "1d" | "1w" | ""
-  >("");
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState<boolean>(false);
 
-  // Process data into regions depending on mode (latest vs history)
+  // Process data into regions (latest only)
   useEffect(() => {
-    if (mode === "latest") {
-      if (Object.keys(metrics).length === 0) return;
-      const processed = Object.entries(metrics)
-        .filter(
-          ([_, value]: [string, any]) =>
-            value && typeof value === "object" && value.status
-        )
-        .map(([key, value]: [string, any]) => {
-          const regionData: RegionData = {
-            serverStatus: value.status,
-            serverIssue: value.server_issue ?? null,
-            strictness: value.strict,
-            version: value.version,
-            roles: value.roles,
-            results: value.results,
-          };
-          const health = getServerHealthStatus(regionData.serverStatus);
-          const performance = getPerformanceRating(0, 0);
-          return {
-            name: key,
-            displayName: formatRegionName(key),
-            ...regionData,
-            health,
-            performance,
-          };
-        });
-      console.log("Latest mode processed regions:", processed);
-      setRegions(processed);
-      setLastUpdated(new Date());
-      return;
-    }
-
-    // History mode: compute per-source average cpu_load in the range and display that
-    if (mode === "history" && Array.isArray(history) && history.length > 0) {
-      const bySource = new Map<
-        string,
-        { latestAt: string; latest: any; items: any[] }
-      >();
-      history.forEach((it) => {
-        const cur = bySource.get(it.source) || {
-          latestAt: "",
-          latest: null,
-          items: [],
-        };
-        if (!cur.latestAt || new Date(it.createdAt) > new Date(cur.latestAt)) {
-          cur.latestAt = it.createdAt;
-          cur.latest = it.data;
-        }
-        cur.items.push(it);
-        bySource.set(it.source, cur);
-      });
-      const processed = Array.from(bySource.entries()).map(([key, bucket]) => {
-        // Average all the metrics charts use
-        const loads = bucket.items
-          .map((x) => (x.data as any)?.results?.stats?.server?.cpu_load)
-          .filter((n) => typeof n === "number");
-        const avgLoad = loads.length
-          ? loads.reduce((a: number, b: number) => a + b, 0) / loads.length
-          : 0;
-
-        const connections = bucket.items
-          .map(
-            (x) => (x.data as any)?.results?.stats?.server?.active_connections
-          )
-          .filter((n) => typeof n === "number");
-        const avgConnections = connections.length
-          ? connections.reduce((a: number, b: number) => a + b, 0) /
-            connections.length
-          : 0;
-
-        const cpus = bucket.items
-          .map((x) => (x.data as any)?.results?.stats?.server?.cpus)
-          .filter((n) => typeof n === "number");
-        const avgCpus = cpus.length
-          ? cpus.reduce((a: number, b: number) => a + b, 0) / cpus.length
-          : 0;
-
-        const base = bucket.latest || {};
-        const results = (base as any)?.results || {};
-        const stats = results?.stats || {};
-        const server = stats?.server || {};
-        const valueWithAvg = {
-          ...(base as any),
-          results: {
-            ...results,
-            stats: {
-              ...stats,
-              server: {
-                ...server,
-                cpu_load: avgLoad,
-                active_connections: avgConnections,
-                cpus: avgCpus,
-              },
-            },
-          },
-        };
-
+    if (Object.keys(metrics).length === 0) return;
+    const processed = Object.entries(metrics)
+      .filter(
+        ([_, value]: [string, any]) =>
+          value && typeof value === "object" && value.status
+      )
+      .map(([key, value]: [string, any]) => {
         const regionData: RegionData = {
-          serverStatus: (base as any)?.status,
-          serverIssue: (base as any)?.server_issue ?? null,
-          strictness: (base as any)?.strict,
-          version: (base as any)?.version,
-          roles: (base as any)?.roles,
-          results: valueWithAvg.results,
+          serverStatus: value.status,
+          serverIssue: value.server_issue ?? null,
+          strictness: value.strict,
+          version: value.version,
+          roles: value.roles,
+          results: value.results,
         };
         const health = getServerHealthStatus(regionData.serverStatus);
-        const performance = getPerformanceRating(0, 0);
         return {
           name: key,
           displayName: formatRegionName(key),
           ...regionData,
           health,
-          performance,
         };
       });
-      console.log("History mode processed regions:", processed);
-      setRegions(processed);
-      const maxCreated = Math.max(
-        ...Array.from(bySource.values()).map((v) =>
-          new Date(v.latestAt).getTime()
-        )
-      );
-      if (isFinite(maxCreated)) setLastUpdated(new Date(maxCreated));
-    }
-  }, [metrics, history, mode]);
+    console.log("Latest mode processed regions:", processed);
+    setRegions(processed);
+    setLastUpdated(new Date());
+  }, [metrics]);
 
-  // Initialize data on mount
+  // Debug snapshot (latest only)
+  useEffect(() => {
+    try {
+      const sourcesLatest = Object.keys(metrics || {});
+      console.groupCollapsed("Dashboard data snapshot (latest)");
+      console.table(sourcesLatest.map((s) => ({ source: s })));
+      console.groupEnd();
+    } catch {}
+  }, [metrics, isConnected]);
+
+  // Initialize / control data flow based on live toggle
   useEffect(() => {
     if (!isConnected) return;
-    if (mode === "latest") {
+    getInitialData();
+    if (autoRefreshEnabled) enableLive?.();
+    else disableLive?.();
+  }, [isConnected, autoRefreshEnabled]);
+
+  const toggleAutoRefresh = () => {
+    if (!autoRefreshEnabled) {
+      setAutoRefreshEnabled(true);
       enableLive?.();
       getInitialData();
-    } else {
-      disableLive?.();
+      return;
     }
-  }, [isConnected, mode]);
-
-  // Calculate aggregate metrics
-  const totalSessions = regions.reduce((sum, region) => sum + 0, 0);
-  const totalThroughput = regions.reduce((sum, region) => sum + 0, 0);
-  const totalConnections = regions.reduce((sum, region) => sum + 0, 0);
-  const totalRequestsPerSecond = regions.reduce((sum, region) => sum + 0, 0);
-
-  const avgLatency =
-    regions.length > 0
-      ? regions.reduce((sum, region) => sum + 0, 0) / regions.length
-      : 0;
-  const avgErrorRate =
-    regions.length > 0
-      ? regions.reduce((sum, region) => sum + parseErrorRate("null"), 0) /
-        regions.length
-      : 0;
-  const avgCpuUsage =
-    regions.length > 0
-      ? regions.reduce((sum, region) => sum + 0, 0) / regions.length
-      : 0;
-  const avgMemoryUsage =
-    regions.length > 0
-      ? regions.reduce((sum, region) => sum + 0, 0) / regions.length
-      : 0;
-  const avgDiskUsage =
-    regions.length > 0
-      ? regions.reduce((sum, region) => sum + 0, 0) / regions.length
-      : 0;
-
-  const handleLoadHistoryRange = (range: "1m" | "30m" | "1h" | "1d" | "1w") => {
-    // Ensure we're in history mode when a range is picked
-    if (mode !== "history") setMode("history");
-    const now = new Date();
-    const to = now.toISOString();
-    const from = new Date(now);
-    switch (range) {
-      case "1m":
-        from.setMinutes(now.getMinutes() - 1);
-        break;
-      case "30m":
-        from.setMinutes(now.getMinutes() - 30);
-        break;
-      case "1h":
-        from.setHours(now.getHours() - 1);
-        break;
-      case "1d":
-        from.setDate(now.getDate() - 1);
-        break;
-      case "1w":
-        from.setDate(now.getDate() - 7);
-        break;
-    }
-    setActiveRange(range);
-    setIsLoading(true);
-    disableLive?.();
-    getHistory({ from: from.toISOString(), to });
-    setTimeout(() => setIsLoading(false), 800);
-  };
-
-  const handleSwitchToLatest = () => {
-    setMode("latest");
-    setActiveRange("");
-    enableLive?.();
-    getInitialData();
-  };
-
-  const handleSwitchToHistory = () => {
-    setMode("history");
+    setAutoRefreshEnabled(false);
     disableLive?.();
   };
+
+  const totalConnections = useMemo(() => {
+    return regions.reduce((sum, region) => {
+      const v =
+        (region as any)?.results?.stats?.server?.active_connections || 0;
+      return sum + (typeof v === "number" ? v : 0);
+    }, 0);
+  }, [regions]);
+
+  const totalCpus = useMemo(() => {
+    return regions.reduce((sum, region) => {
+      const v = (region as any)?.results?.stats?.server?.cpus || 0;
+      return sum + (typeof v === "number" ? v : 0);
+    }, 0);
+  }, [regions]);
+
+  // Chart data: wait time and timers by region (current snapshot)
+  const chartLabels = useMemo(
+    () => regions.map((r) => r.displayName),
+    [regions]
+  );
+  const waitTimes = useMemo(
+    () =>
+      regions.map(
+        (r) => ((r as any)?.results?.stats?.server?.wait_time as number) || 0
+      ),
+    [regions]
+  );
+  const timersCounts = useMemo(
+    () =>
+      regions.map(
+        (r) => ((r as any)?.results?.stats?.server?.timers as number) || 0
+      ),
+    [regions]
+  );
+
+  const totalCpuLoad = useMemo(() => {
+    return regions.reduce((acc: number, region: any) => {
+      const v = (region as any)?.results?.stats?.server?.cpu_load || 0;
+      return acc + (typeof v === "number" ? v : 0);
+    }, 0);
+  }, [regions]);
+
+  // Per-region error rate cards (from serverIssue; null => 0)
+  const regionErrorRates = useMemo(() => {
+    const ordered = [...regions].sort((a, b) =>
+      a.displayName.localeCompare(b.displayName)
+    );
+    return ordered.map((r) => {
+      const raw = (r as any)?.serverIssue ?? 0;
+      const num = typeof raw === "number" ? raw : parseFloat(String(raw));
+      const value = Number.isFinite(num) ? num : 0;
+      return { title: r.displayName, value };
+    });
+  }, [regions]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 p-6 transition-all duration-500">
@@ -327,62 +208,67 @@ export default function DevOpsDashboard() {
               <WifiHighIcon
                 size={32}
                 weight="bold"
-                className={isConnected ? "text-green-500" : "text-red-500"}
+                className={
+                  !isConnected
+                    ? "text-red-500"
+                    : autoRefreshEnabled
+                    ? "text-green-500"
+                    : "text-amber-500"
+                }
+                aria-label={
+                  !isConnected
+                    ? "Disconnected"
+                    : autoRefreshEnabled
+                    ? "Live streaming enabled"
+                    : "Live streaming paused"
+                }
               />
-              {isConnected ? "Connected to real-time data" : "Disconnected"}
+              {autoRefreshEnabled
+                ? isConnected
+                  ? "Connected to real-time data"
+                  : "Disconnected"
+                : null}
             </p>
           </div>
           <div className="flex items-center gap-3 animate-slide-in-right">
             <ThemeToggle />
             <div className="flex items-center gap-2 border rounded-md px-1 py-1 dark:border-gray-700">
+              {/* Latest tab (indicator only) */}
+              <Tabs value="latest">
+                <TabsList className="bg-transparent p-0 gap-1">
+                  <TabsTrigger
+                    value="latest"
+                    className="px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                    onClick={() => {
+                      enableLive?.();
+                      getInitialData();
+                    }}
+                  >
+                    Latest
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+              {/* Refresh toggle (stream live when enabled; freeze when off) */}
               <Button
-                size="sm"
-                variant={mode === "latest" ? "default" : "outline"}
-                onClick={handleSwitchToLatest}
+                size="icon"
+                variant="ghost"
+                aria-pressed={autoRefreshEnabled}
+                title={
+                  autoRefreshEnabled ? "Auto-refresh: on" : "Auto-refresh: off"
+                }
+                onClick={toggleAutoRefresh}
+                className={
+                  autoRefreshEnabled
+                    ? "text-blue-600 hover:text-blue-700"
+                    : "text-gray-500 hover:text-gray-700"
+                }
               >
-                Latest
-              </Button>
-              <Button
-                size="sm"
-                variant={mode === "history" ? "default" : "outline"}
-                onClick={handleSwitchToHistory}
-              >
-                History
+                <ArrowsClockwiseIcon size={18} weight="bold" />
               </Button>
             </div>
-            {mode === "history" && (
-              <div className="flex items-center gap-1">
-                {(
-                  [
-                    { key: "30m", label: "30m" },
-                    { key: "1h", label: "1h" },
-                    { key: "1d", label: "1d" },
-                    { key: "1w", label: "1w" },
-                  ] as Array<{ key: "30m" | "1h" | "1d" | "1w"; label: string }>
-                ).map((r) => (
-                  <Button
-                    key={r.key}
-                    size="sm"
-                    variant={activeRange === r.key ? "default" : "outline"}
-                    onClick={() => handleLoadHistoryRange(r.key)}
-                  >
-                    {r.label}
-                  </Button>
-                ))}
-              </div>
-            )}
-            {mode === "latest" && (
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Latest data • {lastUpdated.toLocaleTimeString()}
-              </div>
-            )}
-            {mode === "history" && activeRange && (
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {isLoading
-                  ? "Loading..."
-                  : `History ${activeRange} • ${lastUpdated.toLocaleTimeString()}`}
-              </div>
-            )}
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Latest data • {lastUpdated.toLocaleTimeString()}
+            </div>
           </div>
         </header>
 
@@ -400,166 +286,93 @@ export default function DevOpsDashboard() {
           <RegionsCardSkeleton />
         )}
 
-        {/* metrics card */}
-        {regions.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
-            {[
-              {
-                title: "Total Sessions",
-                value: totalSessions,
-                icon: UsersThreeIcon,
-                formatter: formatNumber,
-                color: "text-purple-600",
-                bgColor: "bg-purple-100 dark:bg-purple-900/20",
-              },
-              {
-                title: "Throughput",
-                value: totalThroughput,
-                icon: PulseIcon,
-                formatter: (v: number) => `${formatNumber(v)}/m`,
-                color: "text-green-600",
-                bgColor: "bg-green-100 dark:bg-green-900/20",
-              },
-              {
-                title: "Avg Latency",
-                value: avgLatency,
-                icon: ClockIcon,
-                formatter: (v: number) => `${v.toFixed(1)}ms`,
-                color: getMetricColor(avgLatency, {
-                  good: 100,
-                  warning: 150,
-                  critical: 200,
-                }),
-                bgColor: "bg-blue-100 dark:bg-blue-900/20",
-              },
-              {
-                title: "Error Rate",
-                value: avgErrorRate,
-                icon: WarningIcon,
-                formatter: (v: number) => formatPercentage(v),
-                color: getMetricColor(avgErrorRate, {
-                  good: 0.5,
-                  warning: 1,
-                  critical: 2,
-                }),
-                bgColor: "bg-red-100 dark:bg-red-900/20",
-              },
-            ].map((metric, index) => (
+        {/* Per-region Error Rate cards (from serverIssue; null => 0) */}
+        {regionErrorRates.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+            {regionErrorRates.map((item, index) => (
               <Card
-                key={metric.title}
+                key={item.title}
                 className="transition-all duration-300 animate-fade-in border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur hover:shadow-xl hover:scale-105"
-                style={{ animationDelay: `${index * 50}ms` }}
+                style={{ animationDelay: `${index * 40}ms` }}
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {metric.title}
-                  </CardTitle>
-                  <div className={`p-2 rounded-lg ${metric.bgColor}`}>
-                    <metric.icon className={`h-4 w-4 ${metric.color}`} />
+                  <div>
+                    <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Server Issues
+                    </CardTitle>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {item.title}
+                    </div>
+                  </div>
+                  <div
+                    className={`p-2 rounded-lg bg-red-100 dark:bg-red-900/20`}
+                  >
+                    <WarningIcon
+                      className={`h-4 w-4 ${getMetricColor(item.value, {
+                        good: 0.5,
+                        warning: 1,
+                        critical: 2,
+                      })}`}
+                    />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div
-                    className={`text-2xl font-bold ${
-                      metric.color === "string"
-                        ? metric.color
-                        : "text-gray-900 dark:text-white"
-                    }`}
+                    className={`text-2xl font-bold text-gray-900 dark:text-white`}
                   >
-                    {typeof metric.formatter === "function"
-                      ? metric.formatter(metric.value)
-                      : metric.value}
+                    {formatPercentage(item.value)}
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <StatsGridSkeleton items={4} />
+          <StatsGridSkeleton items={6} />
         )}
 
         {regions.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-            {[
-              {
-                title: "CPU Usage",
-                value: avgCpuUsage,
-                icon: CpuIcon,
-                formatter: (v: number) => `${v.toFixed(0)}%`,
-                color: getMetricColor(avgCpuUsage, {
-                  good: 50,
-                  warning: 75,
-                  critical: 90,
-                }),
-              },
-              {
-                title: "Memory",
-                value: avgMemoryUsage,
-                icon: MemoryIcon,
-                formatter: (v: number) => `${v.toFixed(0)}%`,
-                color: getMetricColor(avgMemoryUsage, {
-                  good: 50,
-                  warning: 75,
-                  critical: 90,
-                }),
-              },
-              {
-                title: "Disk Usage",
-                value: avgDiskUsage,
-                icon: HardDriveIcon,
-                formatter: (v: number) => `${v.toFixed(0)}%`,
-                color: getMetricColor(avgDiskUsage, {
-                  good: 60,
-                  warning: 80,
-                  critical: 90,
-                }),
-              },
-              {
-                title: "RPS Total",
-                value: totalRequestsPerSecond,
-                icon: LightningIcon,
-                formatter: formatNumber,
-                color: "text-indigo-600",
-              },
-              {
-                title: "Connections",
-                value: totalConnections,
-                icon: PlugsIcon,
-                formatter: formatNumber,
-                color: "text-cyan-600",
-              },
-              {
-                title: "Regions",
-                value: regions.length,
-                icon: TrendUpIcon,
-                formatter: (v: number) => v.toString(),
-                color: regions.length > 0 ? "text-green-600" : "text-gray-600",
-              },
-            ].map((metric, index) => (
-              <Card
-                key={metric.title}
-                className="transition-all duration-300 animate-fade-in border-0 shadow dark:bg-gray-800/50 backdrop-blur hover:shadow-lg"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {metric.title}
-                    </p>
-                    <metric.icon className={`h-4 w-4 ${metric.color}`} />
-                  </div>
-                  <p className={`text-xl font-bold ${metric.color}`}>
-                    {metric.formatter(metric.value)}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Left: stacked mini-cards */}
+            <div className="flex flex-col gap-3">
+              <MetricMiniCard
+                title="Total CPU Load"
+                value={totalCpuLoad}
+                icon={CpuIcon}
+                color="text-purple-600"
+                formatter={(v) => v.toFixed(2)}
+              />
+              <MetricMiniCard
+                title="CPUs Total"
+                value={totalCpus}
+                icon={CpuIcon}
+                color="text-indigo-600"
+                formatter={formatNumber}
+              />
+              <MetricMiniCard
+                title="Total Active Connections"
+                value={totalConnections}
+                icon={PlugsIcon}
+                color="text-cyan-600"
+                formatter={formatNumber}
+              />
+              <MetricMiniCard
+                title="Regions"
+                value={regions.length}
+                icon={TrendUpIcon}
+                color={regions.length > 0 ? "text-green-600" : "text-gray-600"}
+                formatter={(v) => v.toString()}
+              />
+              <OnlineMiniChart regions={regions as any} />
+            </div>
+
+            {/* Right: charts */}
+            <div className="flex flex-col gap-4">
+              <WaitTimeMiniChart regions={regions as any} />
+              <TimersMiniChart regions={regions as any} />
+            </div>
           </div>
         ) : (
-          <StatsGridSkeleton
-            items={6}
-            cols="grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
-          />
+          <StatsGridSkeleton items={4} />
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

@@ -8,7 +8,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MetricChart } from "@/components/charts/MetricChart";
-import { getChartColor } from "@/lib/helpers/utils";
 
 type RegionLike = {
   displayName: string;
@@ -22,11 +21,16 @@ type RegionLike = {
 };
 
 export function ActiveConnectionsCard({ regions }: { regions: RegionLike[] }) {
+  // Sort regions alphabetically to keep positions stable
+  const sorted = [...regions].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName)
+  );
+
   // Build data array once
-  const values = regions.map(
+  const values = sorted.map(
     (r) => r.results?.stats?.server?.active_connections || 0
   );
-  console.log("ActiveConnectionsCard - regions:", regions, "values:", values);
+
   const min = Math.min(...values, 0);
   const max = Math.max(...values, 1);
 
@@ -63,8 +67,10 @@ export function ActiveConnectionsCard({ regions }: { regions: RegionLike[] }) {
   const mid = hexToRgb("#a78bfa"); // violet-400
   const high = hexToRgb("#7c3aed"); // theme purple-accent
 
+  // Color helper for the chart (violet-200 → violet-400 → theme purple)
   const valueToColor = (v: number) => {
     const norm = max === min ? 0 : (v - min) / (max - min);
+    // if the value is less than 0.5, we use the violet-200 color
     if (norm <= 0.5) {
       const t = norm / 0.5;
       const [r, g, b] = lerpRgb(low, mid, t);
@@ -89,7 +95,7 @@ export function ActiveConnectionsCard({ regions }: { regions: RegionLike[] }) {
         <MetricChart
           type="bar"
           data={{
-            labels: regions.map((r) => r.displayName),
+            labels: sorted.map((r) => r.displayName),
             datasets: [
               {
                 label: "Active Connections",
@@ -109,15 +115,14 @@ export function ActiveConnectionsCard({ regions }: { regions: RegionLike[] }) {
             scales: {
               x: {
                 beginAtZero: true,
-                grid: {
-                  color: "rgba(124, 58, 237, 0.12)",
-                  lineWidth: 0.5,
-                },
-                border: { color: "rgba(124, 58, 237, 0.25)" },
+                grid: { display: false },
+                border: { display: false },
+                ticks: { color: "#9ca3af", font: { size: 10 } },
               },
               y: {
                 grid: { display: false },
-                border: { color: "rgba(124, 58, 237, 0.25)" },
+                border: { display: false },
+                ticks: { color: "#9ca3af", font: { size: 10 } },
               },
             },
           }}
