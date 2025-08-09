@@ -76,43 +76,39 @@ export default function RegionDetailPage() {
   useEffect(() => {
     if (Object.keys(metrics).length > 0) {
       const regionKey = params.region as string;
-      const regionData = metrics[regionKey];
+      const regionRaw = (metrics[regionKey] || {}) as Record<string, any>;
 
-      if (regionData) {
+      if (regionRaw) {
         const data: RegionData = {
-          latency: regionData.latency || 0,
-          throughput: regionData.throughput || 0,
-          errorRate: regionData.errorRate || 0,
-          activeSessions: regionData.activeSessions || 0,
-          cpuUsage: regionData.cpuUsage || 0,
-          memoryUsage: regionData.memoryUsage || 0,
-          diskUsage: regionData.diskUsage || 0,
-          requestsPerSecond: regionData.requestsPerSecond || 0,
-          activeConnections: regionData.activeConnections || 0,
-          timestamp: regionData.timestamp || new Date().toISOString(),
-          source: regionData.source || regionKey,
-          serverStatus: regionData.status || "unknown",
-          region: regionData.region || regionKey,
-          serversCount: regionData.results?.stats?.servers_count || 0,
-          online: regionData.results?.stats?.online || 0,
-          session: regionData.results?.stats?.session || 0,
-          cpuLoad: regionData.results?.stats?.server?.cpu_load || 0,
-          waitTime: regionData.results?.stats?.server?.wait_time || 0,
-          timers: regionData.results?.stats?.server?.timers || 0,
+          latency: Number(regionRaw.latency ?? 0),
+          throughput: Number(regionRaw.throughput ?? 0),
+          errorRate: regionRaw.errorRate ?? 0,
+          activeSessions: Number(regionRaw.activeSessions ?? 0),
+          cpuUsage: Number(regionRaw.cpuUsage ?? 0),
+          memoryUsage: Number(regionRaw.memoryUsage ?? 0),
+          diskUsage: Number(regionRaw.diskUsage ?? 0),
+          requestsPerSecond: Number(regionRaw.requestsPerSecond ?? 0),
+          activeConnections: Number(regionRaw.activeConnections ?? 0),
+          timestamp: String(regionRaw.timestamp ?? new Date().toISOString()),
+          source: String(regionRaw.source ?? regionKey),
+          serverStatus: String(regionRaw.status ?? "unknown"),
+          region: String(regionRaw.region ?? regionKey),
+          serversCount: Number(regionRaw.results?.stats?.servers_count ?? 0),
+          online: Number(regionRaw.results?.stats?.online ?? 0),
+          session: Number(regionRaw.results?.stats?.session ?? 0),
+          cpuLoad: Number(regionRaw.results?.stats?.server?.cpu_load ?? 0),
+          waitTime: Number(regionRaw.results?.stats?.server?.wait_time ?? 0),
+          timers: Number(regionRaw.results?.stats?.server?.timers ?? 0),
           services: {
-            redis: regionData.results?.services?.redis || false,
-            database: regionData.results?.services?.database || false,
+            redis: Boolean(regionRaw.results?.services?.redis ?? false),
+            database: Boolean(regionRaw.results?.services?.database ?? false),
           },
-          workers: regionData.results?.stats?.server?.workers || [],
+          workers: (regionRaw.results?.stats?.server?.workers ?? []) as Array<
+            [string, any]
+          >,
         };
 
-        const health = getServerHealthStatus(
-          data.serverStatus,
-          parseErrorRate(data.errorRate),
-          data.latency,
-          data.cpuUsage,
-          data.memoryUsage
-        );
+        const health = getServerHealthStatus(data.serverStatus);
 
         setRegion({
           name: regionKey,
