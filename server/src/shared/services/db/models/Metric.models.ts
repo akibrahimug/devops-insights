@@ -50,6 +50,11 @@ const MetricHistorySchema = new Schema<MetricDoc>(
   { timestamps: true },
 );
 MetricHistorySchema.index({ api: 1, source: 1, createdAt: -1 });
+// Retain history for up to 7 days; MongoDB TTL monitor will remove older docs automatically
+MetricHistorySchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 60 * 60 * 24 * 7 },
+);
 
 export const MetricHistory: Model<MetricDoc> =
   mongoose.models.MetricHistory ||
