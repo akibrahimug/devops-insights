@@ -144,6 +144,15 @@ export const extractCpuLoad: MetricExtractor = (data: any) =>
 export const extractCpus: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "server", "cpus"], 0);
 
+export const extractWaitTime: MetricExtractor = (data: any) =>
+  getIn(data, ["results", "stats", "server", "wait_time"], 0);
+
+export const extractTimers: MetricExtractor = (data: any) =>
+  getIn(data, ["results", "stats", "server", "timers"], 0);
+
+export const extractOnline: MetricExtractor = (data: any) =>
+  getIn(data, ["results", "stats", "online"], 0);
+
 // Heuristic extractors for memory and disk usage; adjust paths as real payload requires
 export const extractMemoryUsage: MetricExtractor = (data: any) => {
   const candidates = [

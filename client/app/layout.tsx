@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { WebSocketProvider } from "@/app/contexts/WebSocketContext";
+import { HeaderProvider } from "@/app/contexts/HeaderContext";
+import HeaderMount from "@/components/layout/HeaderMount";
 import { ThemeProvider } from "@/components/Theme/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,7 +27,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <WebSocketProvider>{children}</WebSocketProvider>
+          <WebSocketProvider>
+            <HeaderProvider>
+              <HeaderMount />
+              <main className="max-w-7xl mx-auto px-6 pb-10">{children}</main>
+            </HeaderProvider>
+          </WebSocketProvider>
         </ThemeProvider>
       </body>
     </html>

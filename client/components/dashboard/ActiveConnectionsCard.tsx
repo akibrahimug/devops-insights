@@ -82,7 +82,7 @@ export function ActiveConnectionsCard({ regions }: { regions: RegionLike[] }) {
   };
 
   return (
-    <Card className="animate-scale-in border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur">
+    <Card className="animate-scale-in border-0 shadow dark:bg-gray-800/50 backdrop-blur">
       <CardHeader>
         <CardTitle className="text-gray-900 dark:text-white">
           Active Connections by Region

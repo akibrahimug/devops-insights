@@ -39,6 +39,21 @@ export function formatNumber(num: number): string {
 }
 
 /**
+ * Format number in compact form (e.g., 12k, 3.4m)
+ */
+export function formatCompactNumber(
+  num: number,
+  maximumFractionDigits: number = 1
+): string {
+  if (num == null || isNaN(num as any)) return "0";
+  const formatted = new Intl.NumberFormat(undefined, {
+    notation: "compact",
+    maximumFractionDigits,
+  }).format(num);
+  return formatted.toLowerCase();
+}
+
+/**
  * Format percentage with specified decimals
  */
 export function formatPercentage(
@@ -225,6 +240,59 @@ export function formatUptime(timestamp: string): string {
   if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+}
+
+/**
+ * Format a time label for charts based on selected history range
+ */
+// Common time-range keys used across history and charts
+export type RangeKey = "1m" | "5m" | "1h" | "5h" | "1d" | "1w";
+
+// Centralized map for window and bucket sizes per range
+export const RANGE_MS = {
+  "1m": { windowMs: 60_000, bucketMs: 5_000 },
+  "5m": { windowMs: 5 * 60_000, bucketMs: 30_000 },
+  "1h": { windowMs: 60 * 60_000, bucketMs: 60_000 },
+  "5h": { windowMs: 5 * 60 * 60_000, bucketMs: 5 * 60_000 },
+  "1d": { windowMs: 24 * 60 * 60_000, bucketMs: 15 * 60_000 },
+  "1w": { windowMs: 7 * 24 * 60 * 60_000, bucketMs: 60 * 60_000 },
+} as const satisfies Record<RangeKey, { windowMs: number; bucketMs: number }>;
+
+export const windowMsForRange = (key: RangeKey) => RANGE_MS[key].windowMs;
+export const bucketMsForRange = (key: RangeKey) => RANGE_MS[key].bucketMs;
+
+export function formatTimeLabelForRange(
+  dateLike: string | number | Date,
+  range: RangeKey
+): string {
+  const d = new Date(dateLike);
+  const base: Intl.DateTimeFormatOptions = {
+    hour12: false,
+  };
+  let opts: Intl.DateTimeFormatOptions = {};
+  switch (range) {
+    case "1m":
+    case "5m":
+      opts = { ...base, hour: "2-digit", minute: "2-digit", second: "2-digit" };
+      break;
+    case "1h":
+    case "5h":
+      opts = { ...base, hour: "2-digit", minute: "2-digit" };
+      break;
+    case "1d":
+      opts = { ...base, weekday: "short", hour: "2-digit", minute: "2-digit" };
+      break;
+    case "1w":
+      opts = {
+        ...base,
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      };
+      break;
+  }
+  return new Intl.DateTimeFormat(undefined, opts).format(d);
 }
 
 /**
