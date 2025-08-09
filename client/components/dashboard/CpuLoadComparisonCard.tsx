@@ -29,17 +29,22 @@ type RegionLike = {
 };
 
 export function CpuLoadComparisonCard({ regions }: { regions: RegionLike[] }) {
+  const ordered = useMemo(
+    () =>
+      [...regions].sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [regions]
+  );
   const [selected, setSelected] = useState<string>(
-    regions[0]?.displayName || ""
+    ordered[0]?.displayName || ""
   );
 
   const cpuByRegion = useMemo(
     () =>
-      regions.map((r) => ({
+      ordered.map((r) => ({
         name: r.displayName,
         cpu: r.results?.stats?.server?.cpu_load ?? 0,
       })),
-    [regions]
+    [ordered]
   );
 
   // Global average across all regions (does not change with selection)

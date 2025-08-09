@@ -241,3 +241,6 @@ export function calculateTrend(
 
   return { value: Math.abs(change), direction };
 }
+
+// Re-export history helpers so consumers can import from a single module
+export * from "./history";

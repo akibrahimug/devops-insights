@@ -21,7 +21,10 @@ type RegionLike = {
 };
 
 export function CpuCoresCard({ regions }: { regions: RegionLike[] }) {
-  const values = regions.map((r) => r.results?.stats?.server?.cpus || 0);
+  const sorted = [...regions].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName)
+  );
+  const values = sorted.map((r) => r.results?.stats?.server?.cpus || 0);
 
   // Scriptable gradient (vertical): lowest value (bottom) red -> mid amber -> highest (top) green
   const gradientColor = (ctx: any, opacity = 1) => {
@@ -50,7 +53,7 @@ export function CpuCoresCard({ regions }: { regions: RegionLike[] }) {
         <MetricChart
           type="line"
           data={{
-            labels: regions.map((r) => r.displayName),
+            labels: sorted.map((r) => r.displayName),
             datasets: [
               {
                 label: "CPU Cores",
@@ -58,19 +61,29 @@ export function CpuCoresCard({ regions }: { regions: RegionLike[] }) {
                 borderColor: (c: any) => gradientColor(c, 0.95),
                 backgroundColor: (c: any) => gradientColor(c, 0.12),
                 fill: true,
-                tension: 0.35,
-                pointRadius: 3,
-                pointHoverRadius: 5,
+                tension: 0.5,
+                pointRadius: 2,
+                pointHoverRadius: 4,
               },
             ],
           }}
           options={{
             plugins: { legend: { display: false } },
             scales: {
-              x: { grid: { color: "rgba(148, 163, 184, 0.15)" } },
+              x: {
+                grid: { display: false },
+                border: { display: false },
+                ticks: { display: false },
+              },
               y: {
                 beginAtZero: true,
-                grid: { color: "rgba(148, 163, 184, 0.15)" },
+                grid: { display: false },
+                border: { display: false },
+                ticks: {
+                  maxTicksLimit: 3,
+                  color: "#9ca3af",
+                  font: { size: 10 },
+                },
               },
             },
           }}

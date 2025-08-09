@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   ReactNode,
 } from "react";
 import { io, Socket } from "socket.io-client";
@@ -81,16 +82,22 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   >([]);
   const [error, setError] = useState<string | null>(null);
   const [liveEnabled, setLiveEnabled] = useState<boolean>(true);
+  const liveEnabledRef = useRef<boolean>(liveEnabled);
+
+  // Keep a ref in sync so event handlers use the latest flag
+  useEffect(() => {
+    liveEnabledRef.current = liveEnabled;
+  }, [liveEnabled]);
 
   // Use effect to initialize the socket connection
   useEffect(() => {
     // Initialize Socket.IO connection
     const newSocket = io(BACKEND_URL, {
-      transports: ["websocket", "polling"], // Fallback to polling if WebSocket fails
+      transports: ["websocket", "polling"], // Prefer WebSocket; Socket.IO will fall back to polling if WS is unavailable
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      timeout: 20000,
+      timeout: 20000, // 20 seconds timeout
     });
 
     // Connection event handlers
@@ -115,7 +122,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Metrics event handlers
     newSocket.on("metrics:data", (data: MetricsResponse) => {
-      console.log("Received metrics data:", data);
+      // Only log in live mode; still process payload for initial/latest snapshots
+      if (liveEnabledRef.current) {
+        console.log("Received metrics data:", data);
+      }
 
       // If the data has a source, update the metrics for that source
       if (data.source) {
@@ -125,7 +135,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           [data.source!]: data.data as MetricData,
         }));
         // subscribe to realtime updates for this source (only if live mode)
-        if (liveEnabled) {
+        if (liveEnabledRef.current) {
           try {
             newSocket.emit("metrics:subscribe", { source: data.source });
           } catch {}
@@ -135,7 +145,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         setMetrics(data.data as Record<string, MetricData>);
         if (data.updatedAtBySource) setLatestTimestamps(data.updatedAtBySource);
         // subscribe to realtime updates for all sources returned (only if live mode)
-        if (liveEnabled) {
+        if (liveEnabledRef.current) {
           try {
             const all = data.data as Record<string, MetricData>;
             Object.keys(all || {}).forEach((src) =>
@@ -158,11 +168,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Real-time metrics updates
     newSocket.on("metrics-update", (data: MetricsResponse) => {
+      // In history mode, suppress logs and updates entirely
+      if (!liveEnabledRef.current) return;
       console.log("Received real-time metrics update:", data);
 
       // If the data has a source, update the metrics for that source
       if (data.source) {
-        if (!liveEnabled) return; // ignore live updates when history mode is active
+        if (!liveEnabledRef.current) return; // ignore live updates when history mode is active
         // Single source data (e.g. a single server)
         setMetrics((prev) => ({
           ...prev,
@@ -276,6 +288,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   const disableLive = () => setLiveEnabled(false);
   const enableLive = () => setLiveEnabled(true);
+
+  // When disabling live (entering history mode), proactively unsubscribe from all known sources
+  useEffect(() => {
+    if (!liveEnabled && socket && isConnected) {
+      try {
+        const srcs = Object.keys(metrics || {});
+        srcs.forEach((s) => socket.emit("metrics:unsubscribe", { source: s }));
+      } catch {}
+    }
+    // Only react to liveEnabled changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveEnabled]);
 
   // Define the value of the context (socket, isConnected, metrics, lastUpdate, error, subscribeToSource, unsubscribeFromSource, getInitialData)
   const value: WebSocketState = {
