@@ -10,50 +10,30 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MetricChart } from "@/components/charts/MetricChart";
-import {
-  ArrowLeft,
-  Database,
-  Cpu,
-  Memory,
-  HardDrive,
-  Users,
-  Clock,
-  Warning,
-} from "@phosphor-icons/react";
+import { ArrowLeft, Database, Cpu } from "@phosphor-icons/react";
 import { useWebSocket } from "@/app/contexts/WebSocketContext";
 import { useEffect, useState } from "react";
 import {
   formatRegionName,
   formatNumber,
-  formatPercentage,
-  formatRelativeTime,
   getServerHealthStatus,
-  getMetricColor,
-  parseErrorRate,
 } from "@/lib/helpers/utils";
 import { RegionDetailSkeleton } from "@/components/dashboard/Skeletons";
 
 interface RegionData {
-  latency: number;
-  throughput: number;
-  errorRate: string | number;
-  activeSessions: number;
-  cpuUsage: number;
-  memoryUsage: number;
-  diskUsage: number;
-  requestsPerSecond: number;
-  activeConnections: number;
-  timestamp: string;
-  source: string;
   serverStatus: string;
-  region: string;
+  serverIssue?: number;
+  strictness: boolean;
+  version: string;
+  roles: string[];
   serversCount: number;
   online: number;
   session: number;
   cpuLoad: number;
   waitTime: number;
   timers: number;
+  cpus: number;
+  activeConnections: number;
   services: {
     redis: boolean;
     database: boolean;
@@ -77,43 +57,42 @@ export default function RegionDetailPage() {
   useEffect(() => {
     if (Object.keys(metrics).length > 0) {
       const regionKey = params.region as string;
-      const regionData = metrics[regionKey];
+      const raw: any = (metrics as any)[regionKey] || {};
 
-      if (regionData) {
+      if (raw && raw.status) {
+        const workersEntries: Array<[string, any]> = Array.isArray(
+          raw?.results?.stats?.server?.workers
+        )
+          ? (raw.results.stats.server.workers as Array<[string, any]>)
+          : Object.entries(raw?.results?.stats?.server?.workers || {});
+
         const data: RegionData = {
-          latency: regionData.latency || 0,
-          throughput: regionData.throughput || 0,
-          errorRate: regionData.errorRate || 0,
-          activeSessions: regionData.activeSessions || 0,
-          cpuUsage: regionData.cpuUsage || 0,
-          memoryUsage: regionData.memoryUsage || 0,
-          diskUsage: regionData.diskUsage || 0,
-          requestsPerSecond: regionData.requestsPerSecond || 0,
-          activeConnections: regionData.activeConnections || 0,
-          timestamp: regionData.timestamp || new Date().toISOString(),
-          source: regionData.source || regionKey,
-          serverStatus: regionData.status || "unknown",
-          region: regionData.region || regionKey,
-          serversCount: regionData.results?.stats?.servers_count || 0,
-          online: regionData.results?.stats?.online || 0,
-          session: regionData.results?.stats?.session || 0,
-          cpuLoad: regionData.results?.stats?.server?.cpu_load || 0,
-          waitTime: regionData.results?.stats?.server?.wait_time || 0,
-          timers: regionData.results?.stats?.server?.timers || 0,
+          serverStatus: String(raw.status || "unknown"),
+          serverIssue:
+            raw.server_issue != null
+              ? Number.parseFloat(String(raw.server_issue)) || 0
+              : 0,
+          strictness: Boolean(raw.strict),
+          version: String(raw.version || "-"),
+          roles: Array.isArray(raw.roles) ? raw.roles : [],
+          serversCount: Number(raw?.results?.stats?.servers_count ?? 0) || 0,
+          online: Number(raw?.results?.stats?.online ?? 0) || 0,
+          session: Number(raw?.results?.stats?.session ?? 0) || 0,
+          cpuLoad: Number(raw?.results?.stats?.server?.cpu_load ?? 0) || 0,
+          waitTime: Number(raw?.results?.stats?.server?.wait_time ?? 0) || 0,
+          timers: Number(raw?.results?.stats?.server?.timers ?? 0) || 0,
+          cpus: Number(raw?.results?.stats?.server?.cpus ?? 0) || 0,
+          activeConnections:
+            Number(raw?.results?.stats?.server?.active_connections ?? 0) || 0,
           services: {
-            redis: regionData.results?.services?.redis || false,
-            database: regionData.results?.services?.database || false,
+            redis: Boolean(raw?.results?.services?.redis),
+            database: Boolean(raw?.results?.services?.database),
           },
-          workers: regionData.results?.stats?.server?.workers || [],
+
+          workers: workersEntries,
         };
 
-        const health = getServerHealthStatus(
-          data.serverStatus,
-          parseErrorRate(data.errorRate),
-          data.latency,
-          data.cpuUsage,
-          data.memoryUsage
-        );
+        const health = getServerHealthStatus(data.serverStatus);
 
         setRegion({
           name: regionKey,
@@ -320,102 +299,6 @@ export default function RegionDetailPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Performance Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Performance Metrics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <MetricChart
-              type="bar"
-              data={{
-                labels: ["Latency", "Error Rate", "CPU Usage", "Memory Usage"],
-                datasets: [
-                  {
-                    label: "Current Values",
-                    data: [
-                      region.data.latency,
-                      parseErrorRate(region.data.errorRate),
-                      region.data.cpuUsage,
-                      region.data.memoryUsage,
-                    ],
-                    backgroundColor: [
-                      "rgba(59, 130, 246, 0.6)",
-                      "rgba(239, 68, 68, 0.6)",
-                      "rgba(168, 85, 247, 0.6)",
-                      "rgba(236, 72, 153, 0.6)",
-                    ],
-                    borderColor: [
-                      "rgb(59, 130, 246)",
-                      "rgb(239, 68, 68)",
-                      "rgb(168, 85, 247)",
-                      "rgb(236, 72, 153)",
-                    ],
-                    borderWidth: 2,
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: {
-                    display: false,
-                  },
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                  },
-                },
-              }}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Connection Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Active Connections
-                </span>
-                <span className="font-semibold">
-                  {formatNumber(region.data.activeConnections)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Requests/Second
-                </span>
-                <span className="font-semibold">
-                  {region.data.requestsPerSecond}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Throughput
-                </span>
-                <span className="font-semibold">
-                  {formatNumber(region.data.throughput)}/min
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Last Updated
-                </span>
-                <span className="font-semibold">
-                  {formatRelativeTime(region.data.timestamp)}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
