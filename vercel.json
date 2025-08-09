@@ -1,4 +1,4 @@
 {
-  "builds": [{ "src": "client/next.config.ts", "use": "@vercel/next" }],
-  "routes": [{ "src": "/(.)", "dest": "client/$1" }]
+  "builds": [{ "src": "client/package.json", "use": "@vercel/next" }],
+  "routes": [{ "src": "/(.*)", "dest": "client/$1" }]
 }
