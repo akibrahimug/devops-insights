@@ -3,39 +3,17 @@
 import { useEffect, useRef } from "react";
 import {
   Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  RadialLinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
+  registerables,
   ChartOptions,
   ChartType,
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import { useTheme } from "next-themes";
+import { formatCompactNumber } from "@/lib/helpers/utils";
 import annotationPlugin from "chartjs-plugin-annotation";
 
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  RadialLinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-  annotationPlugin
-);
+// Register all default Chart.js components/controllers (fixes 'line is not a registered controller' in prod)
+ChartJS.register(...registerables, annotationPlugin);
 
 interface MetricChartProps {
   type: ChartType;
@@ -60,8 +38,8 @@ export function MetricChart({
     const isDark = theme === "dark";
     const textColor = isDark ? "#e5e7eb" : "#374151";
     const gridColor = isDark ? "#374151" : "#e5e7eb";
-    const backgroundColor = isDark ? "#111827" : "#ffffff";
 
+    const isLine = type === "line";
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -73,6 +51,7 @@ export function MetricChart({
               family: "Inter, sans-serif",
             },
           },
+          display: false,
         },
         title: {
           display: !!title,
@@ -90,13 +69,24 @@ export function MetricChart({
           bodyColor: textColor,
           borderColor: gridColor,
           borderWidth: 1,
+          callbacks: {
+            label: (context) => {
+              const raw = context.parsed?.y;
+              const value = typeof raw === "number" ? raw : Number(raw || 0);
+              const label = context.dataset?.label || "";
+              const formatted = formatCompactNumber(value);
+              return label ? `${label}: ${formatted}` : formatted;
+            },
+          },
         },
       },
       scales: {
         x: {
-          ticks: {
-            color: textColor,
-          },
+          ticks: isLine
+            ? { display: false }
+            : {
+                color: textColor,
+              },
           grid: {
             color: gridColor,
           },
@@ -105,9 +95,15 @@ export function MetricChart({
           },
         },
         y: {
-          ticks: {
-            color: textColor,
-          },
+          ticks: isLine
+            ? { display: false }
+            : {
+                color: textColor,
+                callback: (val: any) =>
+                  formatCompactNumber(
+                    typeof val === "number" ? val : Number(val || 0)
+                  ),
+              },
           grid: {
             color: gridColor,
           },

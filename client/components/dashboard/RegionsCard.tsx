@@ -49,7 +49,7 @@ export function RegionsCard({ regions }: RegionsCardProps) {
     a.displayName.localeCompare(b.displayName)
   );
   return (
-    <Card className="animate-scale-in border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur pb-3">
+    <Card className="animate-scale-in border-0 shadow dark:bg-gray-800/50 backdrop-blur pb-3">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
           Region statistics

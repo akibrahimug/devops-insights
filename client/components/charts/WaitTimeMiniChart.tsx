@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricChart } from "@/components/charts/MetricChart";
 import { useMemo } from "react";
+import { formatCompactNumber } from "@/lib/helpers/utils";
 
 type RegionInput = {
   displayName: string;
@@ -28,15 +29,15 @@ export function WaitTimeMiniChart({
   );
 
   return (
-    <Card className="border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur">
+    <Card className="border-0 shadow dark:bg-gray-800/50 backdrop-blur">
       <CardHeader>
         <CardTitle>Wait Time by Region</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex items-stretch gap-3">
           <div className="flex flex-col justify-between text-[10px] text-gray-500 dark:text-gray-400 w-8 shrink-0">
-            <span>{max}</span>
-            <span>{Math.round(max / 2)}</span>
+            <span>{formatCompactNumber(max)}</span>
+            <span>{formatCompactNumber(Math.round(max / 2))}</span>
             <span>0</span>
           </div>
           <div className="flex-1">

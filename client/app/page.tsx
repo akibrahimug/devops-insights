@@ -18,6 +18,7 @@ import {
   ChartCardSkeleton,
 } from "@/components/dashboard/Skeletons";
 import { ThemeToggle } from "@/components/Theme/theme-toggle";
+import { useHeader } from "@/app/contexts/HeaderContext";
 import { RegionsCard } from "@/components/dashboard/RegionsCard";
 import { MetricMiniCard } from "@/components/dashboard/MetricMiniCard";
 import {
@@ -77,9 +78,25 @@ export default function DevOpsDashboard() {
     enableLive,
     disableLive,
   } = useWebSocket();
+  const { setHeader } = useHeader();
   const [regions, setRegions] = useState<Region[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState<boolean>(false);
+  useEffect(() => {
+    setHeader({
+      title: "Global DevOps Dashboard",
+      connected: isConnected,
+      autoRefreshEnabled,
+      onToggleRefresh: toggleAutoRefresh,
+      onLatestClick: () => {
+        enableLive?.();
+        getInitialData();
+      },
+      showHistory: false,
+      activeTab: "latest",
+      lastUpdated,
+    });
+  }, [isConnected, autoRefreshEnabled, lastUpdated]);
 
   // Process data into regions (latest only)
   useEffect(() => {
@@ -196,81 +213,9 @@ export default function DevOpsDashboard() {
   }, [regions]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 p-6 transition-all duration-500">
+    <div className="min-h-screen bg-transparent p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* top bar */}
-        <header className="flex items-center justify-between animate-fade-in">
-          <div className="animate-slide-in-left">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
-              Global DevOps Dashboard
-            </h1>
-            <p className="text-gray-600 dark:text-gray-300 flex items-center gap-2 mt-1">
-              <WifiHighIcon
-                size={32}
-                weight="bold"
-                className={
-                  !isConnected
-                    ? "text-red-500"
-                    : autoRefreshEnabled
-                    ? "text-green-500"
-                    : "text-amber-500"
-                }
-                aria-label={
-                  !isConnected
-                    ? "Disconnected"
-                    : autoRefreshEnabled
-                    ? "Live streaming enabled"
-                    : "Live streaming paused"
-                }
-              />
-              {autoRefreshEnabled
-                ? isConnected
-                  ? "Connected to real-time data"
-                  : "Disconnected"
-                : null}
-            </p>
-          </div>
-          <div className="flex items-center gap-3 animate-slide-in-right">
-            <ThemeToggle />
-            <div className="flex items-center gap-2 border rounded-md px-1 py-1 dark:border-gray-700">
-              {/* Latest tab (indicator only) */}
-              <Tabs value="latest">
-                <TabsList className="bg-transparent p-0 gap-1">
-                  <TabsTrigger
-                    value="latest"
-                    className="px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                    onClick={() => {
-                      enableLive?.();
-                      getInitialData();
-                    }}
-                  >
-                    Latest
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-              {/* Refresh toggle (stream live when enabled; freeze when off) */}
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-pressed={autoRefreshEnabled}
-                title={
-                  autoRefreshEnabled ? "Auto-refresh: on" : "Auto-refresh: off"
-                }
-                onClick={toggleAutoRefresh}
-                className={
-                  autoRefreshEnabled
-                    ? "text-blue-600 hover:text-blue-700"
-                    : "text-gray-500 hover:text-gray-700"
-                }
-              >
-                <ArrowsClockwiseIcon size={18} weight="bold" />
-              </Button>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              Latest data • {lastUpdated.toLocaleTimeString()}
-            </div>
-          </div>
-        </header>
+        {/* header configured in effect */}
 
         {/* error message */}
         {error && (
@@ -286,46 +231,46 @@ export default function DevOpsDashboard() {
           <RegionsCardSkeleton />
         )}
 
-        {/* Per-region Error Rate cards (from serverIssue; null => 0) */}
+        {/* Server Issues section */}
         {regionErrorRates.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
-            {regionErrorRates.map((item, index) => (
-              <Card
-                key={item.title}
-                className="transition-all duration-300 animate-fade-in border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur hover:shadow-xl hover:scale-105"
-                style={{ animationDelay: `${index * 40}ms` }}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <div>
-                    <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Server Issues
-                    </CardTitle>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {item.title}
-                    </div>
-                  </div>
-                  <div
-                    className={`p-2 rounded-lg bg-red-100 dark:bg-red-900/20`}
+          <Card className="animate-scale-in border-0 shadow dark:bg-gray-800/50 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-gray-900 dark:text-white">
+                Server Issues
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {regionErrorRates.map((item, index) => (
+                  <Card
+                    key={item.title}
+                    className="transition-all duration-300 animate-fade-in border-0 shadow dark:bg-gray-800/50 backdrop-blur hover:shadow-md hover:scale-[1.02]"
+                    style={{ animationDelay: `${index * 40}ms` }}
                   >
-                    <WarningIcon
-                      className={`h-4 w-4 ${getMetricColor(item.value, {
-                        good: 0.5,
-                        warning: 1,
-                        critical: 2,
-                      })}`}
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div
-                    className={`text-2xl font-bold text-gray-900 dark:text-white`}
-                  >
-                    {formatPercentage(item.value)}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {item.title}
+                      </div>
+                      <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/20">
+                        <WarningIcon
+                          className={`h-4 w-4 ${getMetricColor(item.value, {
+                            good: 0.5,
+                            warning: 1,
+                            critical: 2,
+                          })}`}
+                        />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatPercentage(item.value)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <StatsGridSkeleton items={6} />
         )}

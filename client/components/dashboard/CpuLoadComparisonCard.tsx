@@ -74,7 +74,7 @@ export function CpuLoadComparisonCard({ regions }: { regions: RegionLike[] }) {
   };
 
   return (
-    <Card className="animate-scale-in border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur">
+    <Card className="animate-scale-in border-0 shadow dark:bg-gray-800/50 backdrop-blur">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-4">
           <div>

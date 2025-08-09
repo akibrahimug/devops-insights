@@ -17,7 +17,7 @@ export function MetricMiniCard({
 }) {
   const formatted = typeof formatter === "function" ? formatter(value) : value;
   return (
-    <Card className="transition-all duration-300 animate-fade-in border-0 shadow dark:bg-gray-800/50 backdrop-blur hover:shadow-lg">
+    <Card className="transition-all duration-300 animate-fade-in border-0 shadow dark:bg-gray-800/50 backdrop-blur hover:shadow">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
