@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { WebSocketProvider } from "@/app/contexts/WebSocketContext";
-import { ThemeProvider } from "@/components/Theme/providers";
+import { ThemeProvider } from "@/components/Theme/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -19,9 +19,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <WebSocketProvider>
-          <ThemeProvider>{children}</ThemeProvider>
-        </WebSocketProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <WebSocketProvider>{children}</WebSocketProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -18,6 +18,8 @@ export interface MetricsResponse {
   source?: string;
   data: MetricData | Record<string, MetricData>;
   updatedAt?: string;
+  timestamp?: string;
+  updatedAtBySource?: Record<string, string>;
   count?: number;
 }
 
@@ -26,10 +28,20 @@ export interface WebSocketState {
   isConnected: boolean;
   metrics: Record<string, MetricData>;
   lastUpdate: Date | null;
+  latestTimestamps: Record<string, string>;
+  history: Array<{ source: string; data: MetricData; createdAt: string }>;
   error: string | null;
   subscribeToSource: (source: string) => void;
   unsubscribeFromSource: (source: string) => void;
   getInitialData: (source?: string) => void;
+  getHistory: (params: {
+    source?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+  }) => void;
+  enableLive: () => void;
+  disableLive: () => void;
 }
 // WebSocketContext is a context that provides the socket connection and the metrics data
 // It is used to subscribe to and unsubscribe from metrics for a given source
@@ -51,7 +63,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [metrics, setMetrics] = useState<Record<string, MetricData>>({});
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [latestTimestamps, setLatestTimestamps] = useState<
+    Record<string, string>
+  >({});
+  const [history, setHistory] = useState<
+    Array<{ source: string; data: MetricData; createdAt: string }>
+  >([]);
   const [error, setError] = useState<string | null>(null);
+  const [liveEnabled, setLiveEnabled] = useState<boolean>(true);
 
   // Use effect to initialize the socket connection
   useEffect(() => {
@@ -95,9 +114,25 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           ...prev,
           [data.source!]: data.data as MetricData,
         }));
+        // subscribe to realtime updates for this source (only if live mode)
+        if (liveEnabled) {
+          try {
+            newSocket.emit("metrics:subscribe", { source: data.source });
+          } catch {}
+        }
       } else {
         // All sources data (e.g. all servers)
         setMetrics(data.data as Record<string, MetricData>);
+        if (data.updatedAtBySource) setLatestTimestamps(data.updatedAtBySource);
+        // subscribe to realtime updates for all sources returned (only if live mode)
+        if (liveEnabled) {
+          try {
+            const all = data.data as Record<string, MetricData>;
+            Object.keys(all || {}).forEach((src) =>
+              newSocket.emit("metrics:subscribe", { source: src })
+            );
+          } catch {}
+        }
       }
 
       // Update the last update time and clear the error
@@ -117,15 +152,50 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
       // If the data has a source, update the metrics for that source
       if (data.source) {
+        if (!liveEnabled) return; // ignore live updates when history mode is active
         // Single source data (e.g. a single server)
         setMetrics((prev) => ({
           ...prev,
           [data.source!]: data.data as MetricData,
         }));
+        const ts = data.updatedAt || data.timestamp;
+        if (ts) {
+          setLatestTimestamps((prev) => ({ ...prev, [data.source!]: ts }));
+        }
         // Update the last update time
         setLastUpdate(new Date());
       }
     });
+
+    // Historical data events
+    newSocket.on(
+      "metrics:history",
+      (payload: {
+        api: string;
+        source?: string;
+        items: Array<{
+          api: string;
+          source: string;
+          data: MetricData;
+          createdAt: string;
+        }>;
+        count: number;
+      }) => {
+        // Sort newest first to ensure UI sees fresh data immediately
+        const sorted = [...payload.items].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setHistory(
+          sorted.map((it) => ({
+            source: it.source,
+            data: it.data,
+            createdAt: it.createdAt,
+          }))
+        );
+        setLastUpdate(new Date());
+      }
+    );
 
     // Set the socket
     setSocket(newSocket);
@@ -166,16 +236,36 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Get historical data for a time window
+  const getHistory = (params: {
+    source?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+  }) => {
+    if (socket && isConnected) {
+      socket.emit("metrics:getHistory", params || {});
+    }
+  };
+
+  const disableLive = () => setLiveEnabled(false);
+  const enableLive = () => setLiveEnabled(true);
+
   // Define the value of the context (socket, isConnected, metrics, lastUpdate, error, subscribeToSource, unsubscribeFromSource, getInitialData)
   const value: WebSocketState = {
     socket,
     isConnected,
     metrics,
     lastUpdate,
+    latestTimestamps,
+    history,
     error,
     subscribeToSource,
     unsubscribeFromSource,
     getInitialData,
+    getHistory,
+    enableLive,
+    disableLive,
   };
 
   // Return the context provider with the value
