@@ -32,6 +32,7 @@ import {
   getMetricColor,
   parseErrorRate,
 } from "@/lib/helpers/utils";
+import { RegionDetailSkeleton } from "@/components/dashboard/Skeletons";
 
 interface RegionData {
   latency: number;
@@ -125,21 +126,7 @@ export default function RegionDetailPage() {
   }, [metrics, params.region]);
 
   if (!region) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-48 rounded"></div>
-        </div>
-        <div className="animate-pulse space-y-4">
-          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
-        </div>
-      </div>
-    );
+    return <RegionDetailSkeleton />;
   }
 
   return (

@@ -15,6 +15,11 @@ import { MetricChart } from "@/components/charts/MetricChart";
 import { ActiveConnectionsCard } from "@/components/dashboard/ActiveConnectionsCard";
 import { CpuCoresCard } from "@/components/dashboard/CpuCoresCard";
 import { CpuLoadComparisonCard } from "@/components/dashboard/CpuLoadComparisonCard";
+import {
+  RegionsCardSkeleton,
+  StatsGridSkeleton,
+  ChartCardSkeleton,
+} from "@/components/dashboard/Skeletons";
 import { ThemeToggle } from "@/components/Theme/theme-toggle";
 import { RegionsCard } from "@/components/dashboard/RegionsCard";
 import {
@@ -389,167 +394,194 @@ export default function DevOpsDashboard() {
         )}
 
         {/* regions card */}
-        {regions.length > 0 && <RegionsCard regions={regions} />}
+        {regions.length > 0 ? (
+          <RegionsCard regions={regions} />
+        ) : (
+          <RegionsCardSkeleton />
+        )}
 
         {/* metrics card */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
-          {[
-            {
-              title: "Total Sessions",
-              value: totalSessions,
-              icon: UsersThreeIcon,
-              formatter: formatNumber,
-              color: "text-purple-600",
-              bgColor: "bg-purple-100 dark:bg-purple-900/20",
-            },
-            {
-              title: "Throughput",
-              value: totalThroughput,
-              icon: PulseIcon,
-              formatter: (v: number) => `${formatNumber(v)}/m`,
-              color: "text-green-600",
-              bgColor: "bg-green-100 dark:bg-green-900/20",
-            },
-            {
-              title: "Avg Latency",
-              value: avgLatency,
-              icon: ClockIcon,
-              formatter: (v: number) => `${v.toFixed(1)}ms`,
-              color: getMetricColor(avgLatency, {
-                good: 100,
-                warning: 150,
-                critical: 200,
-              }),
-              bgColor: "bg-blue-100 dark:bg-blue-900/20",
-            },
-            {
-              title: "Error Rate",
-              value: avgErrorRate,
-              icon: WarningIcon,
-              formatter: (v: number) => formatPercentage(v),
-              color: getMetricColor(avgErrorRate, {
-                good: 0.5,
-                warning: 1,
-                critical: 2,
-              }),
-              bgColor: "bg-red-100 dark:bg-red-900/20",
-            },
-          ].map((metric, index) => (
-            <Card
-              key={metric.title}
-              className="transition-all duration-300 animate-fade-in border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur hover:shadow-xl hover:scale-105"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {metric.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${metric.bgColor}`}>
-                  <metric.icon className={`h-4 w-4 ${metric.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={`text-2xl font-bold ${
-                    metric.color === "string"
-                      ? metric.color
-                      : "text-gray-900 dark:text-white"
-                  }`}
-                >
-                  {typeof metric.formatter === "function"
-                    ? metric.formatter(metric.value)
-                    : metric.value}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          {[
-            {
-              title: "CPU Usage",
-              value: avgCpuUsage,
-              icon: CpuIcon,
-              formatter: (v: number) => `${v.toFixed(0)}%`,
-              color: getMetricColor(avgCpuUsage, {
-                good: 50,
-                warning: 75,
-                critical: 90,
-              }),
-            },
-            {
-              title: "Memory",
-              value: avgMemoryUsage,
-              icon: MemoryIcon,
-              formatter: (v: number) => `${v.toFixed(0)}%`,
-              color: getMetricColor(avgMemoryUsage, {
-                good: 50,
-                warning: 75,
-                critical: 90,
-              }),
-            },
-            {
-              title: "Disk Usage",
-              value: avgDiskUsage,
-              icon: HardDriveIcon,
-              formatter: (v: number) => `${v.toFixed(0)}%`,
-              color: getMetricColor(avgDiskUsage, {
-                good: 60,
-                warning: 80,
-                critical: 90,
-              }),
-            },
-            {
-              title: "RPS Total",
-              value: totalRequestsPerSecond,
-              icon: LightningIcon,
-              formatter: formatNumber,
-              color: "text-indigo-600",
-            },
-            {
-              title: "Connections",
-              value: totalConnections,
-              icon: PlugsIcon,
-              formatter: formatNumber,
-              color: "text-cyan-600",
-            },
-            {
-              title: "Regions",
-              value: regions.length,
-              icon: TrendUpIcon,
-              formatter: (v: number) => v.toString(),
-              color: regions.length > 0 ? "text-green-600" : "text-gray-600",
-            },
-          ].map((metric, index) => (
-            <Card
-              key={metric.title}
-              className="transition-all duration-300 animate-fade-in border-0 shadow dark:bg-gray-800/50 backdrop-blur hover:shadow-lg"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+        {regions.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
+            {[
+              {
+                title: "Total Sessions",
+                value: totalSessions,
+                icon: UsersThreeIcon,
+                formatter: formatNumber,
+                color: "text-purple-600",
+                bgColor: "bg-purple-100 dark:bg-purple-900/20",
+              },
+              {
+                title: "Throughput",
+                value: totalThroughput,
+                icon: PulseIcon,
+                formatter: (v: number) => `${formatNumber(v)}/m`,
+                color: "text-green-600",
+                bgColor: "bg-green-100 dark:bg-green-900/20",
+              },
+              {
+                title: "Avg Latency",
+                value: avgLatency,
+                icon: ClockIcon,
+                formatter: (v: number) => `${v.toFixed(1)}ms`,
+                color: getMetricColor(avgLatency, {
+                  good: 100,
+                  warning: 150,
+                  critical: 200,
+                }),
+                bgColor: "bg-blue-100 dark:bg-blue-900/20",
+              },
+              {
+                title: "Error Rate",
+                value: avgErrorRate,
+                icon: WarningIcon,
+                formatter: (v: number) => formatPercentage(v),
+                color: getMetricColor(avgErrorRate, {
+                  good: 0.5,
+                  warning: 1,
+                  critical: 2,
+                }),
+                bgColor: "bg-red-100 dark:bg-red-900/20",
+              },
+            ].map((metric, index) => (
+              <Card
+                key={metric.title}
+                className="transition-all duration-300 animate-fade-in border-0 shadow-lg dark:bg-gray-800/50 backdrop-blur hover:shadow-xl hover:scale-105"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {metric.title}
+                  </CardTitle>
+                  <div className={`p-2 rounded-lg ${metric.bgColor}`}>
+                    <metric.icon className={`h-4 w-4 ${metric.color}`} />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div
+                    className={`text-2xl font-bold ${
+                      metric.color === "string"
+                        ? metric.color
+                        : "text-gray-900 dark:text-white"
+                    }`}
+                  >
+                    {typeof metric.formatter === "function"
+                      ? metric.formatter(metric.value)
+                      : metric.value}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <StatsGridSkeleton items={4} />
+        )}
+
+        {regions.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            {[
+              {
+                title: "CPU Usage",
+                value: avgCpuUsage,
+                icon: CpuIcon,
+                formatter: (v: number) => `${v.toFixed(0)}%`,
+                color: getMetricColor(avgCpuUsage, {
+                  good: 50,
+                  warning: 75,
+                  critical: 90,
+                }),
+              },
+              {
+                title: "Memory",
+                value: avgMemoryUsage,
+                icon: MemoryIcon,
+                formatter: (v: number) => `${v.toFixed(0)}%`,
+                color: getMetricColor(avgMemoryUsage, {
+                  good: 50,
+                  warning: 75,
+                  critical: 90,
+                }),
+              },
+              {
+                title: "Disk Usage",
+                value: avgDiskUsage,
+                icon: HardDriveIcon,
+                formatter: (v: number) => `${v.toFixed(0)}%`,
+                color: getMetricColor(avgDiskUsage, {
+                  good: 60,
+                  warning: 80,
+                  critical: 90,
+                }),
+              },
+              {
+                title: "RPS Total",
+                value: totalRequestsPerSecond,
+                icon: LightningIcon,
+                formatter: formatNumber,
+                color: "text-indigo-600",
+              },
+              {
+                title: "Connections",
+                value: totalConnections,
+                icon: PlugsIcon,
+                formatter: formatNumber,
+                color: "text-cyan-600",
+              },
+              {
+                title: "Regions",
+                value: regions.length,
+                icon: TrendUpIcon,
+                formatter: (v: number) => v.toString(),
+                color: regions.length > 0 ? "text-green-600" : "text-gray-600",
+              },
+            ].map((metric, index) => (
+              <Card
+                key={metric.title}
+                className="transition-all duration-300 animate-fade-in border-0 shadow dark:bg-gray-800/50 backdrop-blur hover:shadow-lg"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {metric.title}
+                    </p>
+                    <metric.icon className={`h-4 w-4 ${metric.color}`} />
+                  </div>
+                  <p className={`text-xl font-bold ${metric.color}`}>
+                    {metric.formatter(metric.value)}
                   </p>
-                  <metric.icon className={`h-4 w-4 ${metric.color}`} />
-                </div>
-                <p className={`text-xl font-bold ${metric.color}`}>
-                  {metric.formatter(metric.value)}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <StatsGridSkeleton
+            items={6}
+            cols="grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
+          />
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <ActiveConnectionsCard regions={regions} />
-          <CpuCoresCard regions={regions} />
+          {regions.length > 0 ? (
+            <ActiveConnectionsCard regions={regions} />
+          ) : (
+            <ChartCardSkeleton height={300} />
+          )}
+          {regions.length > 0 ? (
+            <CpuCoresCard regions={regions} />
+          ) : (
+            <ChartCardSkeleton height={300} />
+          )}
         </div>
 
         {/* CPU load comparison (single graph with selector) */}
         <div className="mb-6">
-          <CpuLoadComparisonCard regions={regions} />
+          {regions.length > 0 ? (
+            <CpuLoadComparisonCard regions={regions} />
+          ) : (
+            <ChartCardSkeleton height={260} />
+          )}
         </div>
       </div>
     </div>

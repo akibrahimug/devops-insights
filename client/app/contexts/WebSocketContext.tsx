@@ -29,7 +29,12 @@ export interface WebSocketState {
   metrics: Record<string, MetricData>;
   lastUpdate: Date | null;
   latestTimestamps: Record<string, string>;
-  history: Array<{ source: string; data: MetricData; createdAt: string }>;
+  history: Array<{
+    source: string;
+    data: MetricData;
+    createdAt: string;
+    updatedAt?: string;
+  }>;
   error: string | null;
   subscribeToSource: (source: string) => void;
   unsubscribeFromSource: (source: string) => void;
@@ -67,7 +72,12 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     Record<string, string>
   >({});
   const [history, setHistory] = useState<
-    Array<{ source: string; data: MetricData; createdAt: string }>
+    Array<{
+      source: string;
+      data: MetricData;
+      createdAt: string;
+      updatedAt?: string;
+    }>
   >([]);
   const [error, setError] = useState<string | null>(null);
   const [liveEnabled, setLiveEnabled] = useState<boolean>(true);
@@ -178,9 +188,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           source: string;
           data: MetricData;
           createdAt: string;
+          updatedAt?: string;
         }>;
         count: number;
       }) => {
+        console.log("Received history data:", {
+          api: payload.api,
+          source: payload.source,
+          count: payload.count,
+          itemsLength: payload.items?.length,
+          items: payload.items,
+        });
+
         // Sort newest first to ensure UI sees fresh data immediately
         const sorted = [...payload.items].sort(
           (a, b) =>
@@ -191,6 +210,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             source: it.source,
             data: it.data,
             createdAt: it.createdAt,
+            updatedAt: it.updatedAt,
           }))
         );
         setLastUpdate(new Date());
@@ -244,7 +264,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     limit?: number;
   }) => {
     if (socket && isConnected) {
+      console.log("Requesting history with params:", params);
       socket.emit("metrics:getHistory", params || {});
+    } else {
+      console.warn("Cannot request history: socket not connected", {
+        socketExists: !!socket,
+        isConnected,
+      });
     }
   };
 
