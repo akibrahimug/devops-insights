@@ -22,7 +22,7 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { useWebSocket } from "@/app/contexts/WebSocketContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   formatRegionName,
   formatNumber,
@@ -34,6 +34,7 @@ import {
 } from "@/lib/helpers/utils";
 import { InteractiveLoader } from "@/components/loading/InteractiveLoader";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartSkeleton } from "@/components/charts/ChartSkeleton";
 
 interface RegionData {
   latency: number;
@@ -72,8 +73,9 @@ interface Region {
 export default function RegionDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { metrics } = useWebSocket();
+  const { metrics, history, getHistory, isConnected } = useWebSocket();
   const [region, setRegion] = useState<Region | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (Object.keys(metrics).length > 0) {
@@ -119,6 +121,68 @@ export default function RegionDetailPage() {
       }
     }
   }, [metrics, params.region]);
+
+  // Request last 1h history for selected region
+  useEffect(() => {
+    const regionKey = params.region as string;
+    if (!isConnected || !regionKey) return;
+    const now = new Date();
+    const to = now.toISOString();
+    const from = new Date(now);
+    from.setHours(now.getHours() - 1);
+    setIsHistoryLoading(true);
+    getHistory({ source: regionKey, from: from.toISOString(), to, limit: 2000 });
+  }, [isConnected, params.region, getHistory]);
+
+  // Filter and sort history for the current region
+  const regionHistory = useMemo(() => {
+    const regionKey = params.region as string;
+    const items = (history || []).filter((it) => it.source === regionKey);
+    const sorted = [...items].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    return sorted;
+  }, [history, params.region]);
+
+  useEffect(() => {
+    // Stop loading when we have some history items for this region
+    if (isHistoryLoading && regionHistory.length > 0) setIsHistoryLoading(false);
+  }, [isHistoryLoading, regionHistory.length]);
+
+  // Build time-series datasets
+  const { labels, cpuLoadSeries, activeConnSeries, waitTimeSeries, sessionsSeries } = useMemo(() => {
+    const labels = regionHistory.map((it) => {
+      const d = new Date(it.createdAt);
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    });
+    const cpuLoadSeries = regionHistory.map(
+      (it) => ((it.data as any)?.results?.stats?.server?.cpu_load as number) ?? 0
+    );
+    const activeConnSeries = regionHistory.map(
+      (it) => ((it.data as any)?.results?.stats?.server?.active_connections as number) ?? 0
+    );
+    const waitTimeSeries = regionHistory.map(
+      (it) => ((it.data as any)?.results?.stats?.server?.wait_time as number) ?? 0
+    );
+    const sessionsSeries = regionHistory.map(
+      (it) => ((it.data as any)?.results?.stats?.session as number) ?? 0
+    );
+    return { labels, cpuLoadSeries, activeConnSeries, waitTimeSeries, sessionsSeries };
+  }, [regionHistory]);
+
+  // Gradient line helper
+  const gradientLine = (from: string, mid: string, to: string) => (ctx: any) => {
+    const { chart } = ctx || {};
+    const { ctx: c, chartArea } = chart || {};
+    if (!chartArea) return to;
+    const grad = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+    grad.addColorStop(0, from);
+    grad.addColorStop(0.5, mid);
+    grad.addColorStop(1, to);
+    return grad;
+  };
+
+  const manyPoints = labels.length > 80;
 
   if (!region) {
     return (
@@ -373,16 +437,8 @@ export default function RegionDetailPage() {
               }}
               options={{
                 responsive: true,
-                plugins: {
-                  legend: {
-                    display: false,
-                  },
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                  },
-                },
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } },
               }}
             />
           </CardContent>
@@ -399,7 +455,7 @@ export default function RegionDetailPage() {
                   Active Connections
                 </span>
                 <span className="font-semibold">
-                  {formatNumber(region.data.activeConnections)}
+                  {region.data.activeConnections}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -427,6 +483,160 @@ export default function RegionDetailPage() {
                 </span>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 1h History Charts */}
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>CPU Load (last 1h)</CardTitle>
+            <CardDescription>Average CPU load over the past hour</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isHistoryLoading && labels.length === 0 ? (
+              <ChartSkeleton height={220} />
+            ) : (
+              <MetricChart
+                type="line"
+                data={{
+                  labels,
+                  datasets: [
+                    {
+                      label: "cpu_load",
+                      data: cpuLoadSeries,
+                      borderColor: gradientLine(
+                        "rgba(233,213,255,1)",
+                        "rgba(168,85,247,1)",
+                        "rgba(124,58,237,1)"
+                      ),
+                      backgroundColor: "transparent",
+                      fill: false,
+                      tension: 0.3,
+                      pointRadius: manyPoints ? 0 : 2,
+                      pointHoverRadius: 3,
+                    },
+                  ],
+                }}
+                options={{
+                  plugins: { legend: { display: false } },
+                  elements: { line: { borderWidth: 2 } },
+                }}
+                height={220}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Active Connections (last 1h)</CardTitle>
+            <CardDescription>Number of active connections over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isHistoryLoading && labels.length === 0 ? (
+              <ChartSkeleton height={220} />
+            ) : (
+              <MetricChart
+                type="line"
+                data={{
+                  labels,
+                  datasets: [
+                    {
+                      label: "active_connections",
+                      data: activeConnSeries,
+                      borderColor: gradientLine(
+                        "rgba(191,219,254,1)",
+                        "rgba(59,130,246,1)",
+                        "rgba(37,99,235,1)"
+                      ),
+                      backgroundColor: "transparent",
+                      fill: false,
+                      tension: 0.3,
+                      pointRadius: manyPoints ? 0 : 2,
+                      pointHoverRadius: 3,
+                    },
+                  ],
+                }}
+                options={{ plugins: { legend: { display: false } } }}
+                height={220}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Wait Time (last 1h)</CardTitle>
+            <CardDescription>Server wait time in ms</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isHistoryLoading && labels.length === 0 ? (
+              <ChartSkeleton height={220} />
+            ) : (
+              <MetricChart
+                type="line"
+                data={{
+                  labels,
+                  datasets: [
+                    {
+                      label: "wait_time",
+                      data: waitTimeSeries,
+                      borderColor: gradientLine(
+                        "rgba(254,226,226,1)",
+                        "rgba(239,68,68,1)",
+                        "rgba(185,28,28,1)"
+                      ),
+                      backgroundColor: "transparent",
+                      fill: false,
+                      tension: 0.3,
+                      pointRadius: manyPoints ? 0 : 2,
+                      pointHoverRadius: 3,
+                    },
+                  ],
+                }}
+                options={{ plugins: { legend: { display: false } } }}
+                height={220}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sessions (last 1h)</CardTitle>
+            <CardDescription>Active sessions over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isHistoryLoading && labels.length === 0 ? (
+              <ChartSkeleton height={220} />
+            ) : (
+              <MetricChart
+                type="line"
+                data={{
+                  labels,
+                  datasets: [
+                    {
+                      label: "session",
+                      data: sessionsSeries,
+                      borderColor: gradientLine(
+                        "rgba(204,251,241,1)",
+                        "rgba(20,184,166,1)",
+                        "rgba(13,148,136,1)"
+                      ),
+                      backgroundColor: "transparent",
+                      fill: false,
+                      tension: 0.3,
+                      pointRadius: manyPoints ? 0 : 2,
+                      pointHoverRadius: 3,
+                    },
+                  ],
+                }}
+                options={{ plugins: { legend: { display: false } } }}
+                height={220}
+              />
+            )}
           </CardContent>
         </Card>
       </div>
