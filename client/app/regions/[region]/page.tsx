@@ -15,55 +15,46 @@ import {
   ArrowLeft,
   Database,
   Cpu,
-  Memory,
-  HardDrive,
-  Users,
-  Clock,
-  Warning,
 } from "@phosphor-icons/react";
 import { useWebSocket } from "@/app/contexts/WebSocketContext";
 import { useEffect, useState } from "react";
 import {
   formatRegionName,
   formatNumber,
-  formatPercentage,
-  formatRelativeTime,
   getServerHealthStatus,
-  getMetricColor,
-  parseErrorRate,
 } from "@/lib/helpers/utils";
 
-interface RegionData {
-  latency: number;
-  throughput: number;
-  errorRate: string | number;
-  activeSessions: number;
-  cpuUsage: number;
-  memoryUsage: number;
-  diskUsage: number;
-  requestsPerSecond: number;
-  activeConnections: number;
-  timestamp: string;
-  source: string;
-  serverStatus: string;
-  region: string;
-  serversCount: number;
-  online: number;
-  session: number;
-  cpuLoad: number;
-  waitTime: number;
-  timers: number;
+interface RegionResults {
+  stats: {
+    online: number;
+    server: {
+      cpus: number;
+      active_connections: number;
+      wait_time: number;
+      workers: Array<any>;
+      cpu_load: number;
+    };
+    servers_count: number;
+    session: number;
+  };
   services: {
     redis: boolean;
     database: boolean;
   };
-  workers: Array<[string, any]>;
 }
 
-interface Region {
+interface RegionData {
+  serverStatus: string;
+  serverIssue?: string | null;
+  strictness: number;
+  version: string;
+  roles: string[];
+  results: RegionResults;
+}
+
+interface Region extends RegionData {
   name: string;
   displayName: string;
-  data: RegionData;
   health: ReturnType<typeof getServerHealthStatus>;
 }
 
@@ -76,36 +67,30 @@ export default function RegionDetailPage() {
   useEffect(() => {
     if (Object.keys(metrics).length > 0) {
       const regionKey = params.region as string;
-      const regionRaw = (metrics[regionKey] || {}) as Record<string, any>;
+      const value = metrics[regionKey] as any;
 
-      if (regionRaw) {
+      if (value && typeof value === "object" && value.status) {
         const data: RegionData = {
-          latency: Number(regionRaw.latency ?? 0),
-          throughput: Number(regionRaw.throughput ?? 0),
-          errorRate: regionRaw.errorRate ?? 0,
-          activeSessions: Number(regionRaw.activeSessions ?? 0),
-          cpuUsage: Number(regionRaw.cpuUsage ?? 0),
-          memoryUsage: Number(regionRaw.memoryUsage ?? 0),
-          diskUsage: Number(regionRaw.diskUsage ?? 0),
-          requestsPerSecond: Number(regionRaw.requestsPerSecond ?? 0),
-          activeConnections: Number(regionRaw.activeConnections ?? 0),
-          timestamp: String(regionRaw.timestamp ?? new Date().toISOString()),
-          source: String(regionRaw.source ?? regionKey),
-          serverStatus: String(regionRaw.status ?? "unknown"),
-          region: String(regionRaw.region ?? regionKey),
-          serversCount: Number(regionRaw.results?.stats?.servers_count ?? 0),
-          online: Number(regionRaw.results?.stats?.online ?? 0),
-          session: Number(regionRaw.results?.stats?.session ?? 0),
-          cpuLoad: Number(regionRaw.results?.stats?.server?.cpu_load ?? 0),
-          waitTime: Number(regionRaw.results?.stats?.server?.wait_time ?? 0),
-          timers: Number(regionRaw.results?.stats?.server?.timers ?? 0),
-          services: {
-            redis: Boolean(regionRaw.results?.services?.redis ?? false),
-            database: Boolean(regionRaw.results?.services?.database ?? false),
-          },
-          workers: (regionRaw.results?.stats?.server?.workers ?? []) as Array<
-            [string, any]
-          >,
+          serverStatus: String(value.status),
+          serverIssue: value.server_issue ?? null,
+          strictness: Number(value.strict ?? 0),
+          version: String(value.version ?? ""),
+          roles: Array.isArray(value.roles) ? value.roles : [],
+          results: (value.results || {
+            stats: {
+              online: 0,
+              server: {
+                cpus: 0,
+                active_connections: 0,
+                wait_time: 0,
+                workers: [],
+                cpu_load: 0,
+              },
+              servers_count: 0,
+              session: 0,
+            },
+            services: { redis: false, database: false },
+          }) as RegionResults,
         };
 
         const health = getServerHealthStatus(data.serverStatus);
@@ -113,7 +98,7 @@ export default function RegionDetailPage() {
         setRegion({
           name: regionKey,
           displayName: formatRegionName(regionKey),
-          data,
+          ...data,
           health,
         });
       }
@@ -137,6 +122,11 @@ export default function RegionDetailPage() {
       </div>
     );
   }
+
+  const stats = region.results.stats;
+  const server = stats.server;
+  const services = region.results.services;
+  const workers = Array.isArray(server.workers) ? server.workers : [];
 
   return (
     <div className="container mx-auto p-6">
@@ -169,7 +159,7 @@ export default function RegionDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className={`text-2xl font-bold ${region.health.textColor}`}>
-                {region.data.serverStatus.toUpperCase()}
+                {region.serverStatus.toUpperCase()}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Server Status
@@ -177,7 +167,7 @@ export default function RegionDetailPage() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatNumber(region.data.online)}
+                {formatNumber(stats.online)}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Online Users
@@ -185,7 +175,7 @@ export default function RegionDetailPage() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatNumber(region.data.session)}
+                {formatNumber(stats.session)}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Active Sessions
@@ -211,7 +201,7 @@ export default function RegionDetailPage() {
                   Servers
                 </div>
                 <div className="text-xl font-semibold">
-                  {region.data.serversCount}
+                  {stats.servers_count}
                 </div>
               </div>
               <div>
@@ -219,24 +209,20 @@ export default function RegionDetailPage() {
                   CPU Load
                 </div>
                 <div className="text-xl font-semibold">
-                  {region.data.cpuLoad.toFixed(2)}
+                  {server.cpu_load.toFixed(2)}
                 </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
                   Wait Time
                 </div>
-                <div className="text-xl font-semibold">
-                  {region.data.waitTime}ms
-                </div>
+                <div className="text-xl font-semibold">{server.wait_time}ms</div>
               </div>
               <div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Timers
+                  CPUs
                 </div>
-                <div className="text-xl font-semibold">
-                  {region.data.timers}
-                </div>
+                <div className="text-xl font-semibold">{server.cpus}</div>
               </div>
             </div>
           </CardContent>
@@ -255,24 +241,16 @@ export default function RegionDetailPage() {
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   Redis
                 </span>
-                <Badge
-                  variant={
-                    region.data.services.redis ? "default" : "destructive"
-                  }
-                >
-                  {region.data.services.redis ? "Online" : "Offline"}
+                <Badge variant={services.redis ? "default" : "destructive"}>
+                  {services.redis ? "Online" : "Offline"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   Database
                 </span>
-                <Badge
-                  variant={
-                    region.data.services.database ? "default" : "destructive"
-                  }
-                >
-                  {region.data.services.database ? "Online" : "Offline"}
+                <Badge variant={services.database ? "default" : "destructive"}>
+                  {services.database ? "Online" : "Offline"}
                 </Badge>
               </div>
             </div>
@@ -284,48 +262,65 @@ export default function RegionDetailPage() {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Workers</CardTitle>
-          <CardDescription>
-            Active worker processes and their status
-          </CardDescription>
+          <CardDescription>Active worker processes and their status</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {region.data.workers.map(([name, data], index) => (
-              <div key={index} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    {name}
-                  </h3>
-                  <Badge variant="outline">{data.workers} workers</Badge>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Wait Time:
-                    </span>
-                    <div className="font-medium">{data.wait_time}ms</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Waiting:
-                    </span>
-                    <div className="font-medium">{data.waiting}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Idle:
-                    </span>
-                    <div className="font-medium">{data.idle}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Time to Return:
-                    </span>
-                    <div className="font-medium">{data.time_to_return}ms</div>
-                  </div>
-                </div>
+            {workers.length === 0 && (
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                No worker data
               </div>
-            ))}
+            )}
+            {workers.map((item: any, index: number) => {
+              const name = item?.name || `Worker ${index + 1}`;
+              const data = item || {};
+              return (
+                <div key={index} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                      {name}
+                    </h3>
+                    {typeof data.workers === "number" && (
+                      <Badge variant="outline">{data.workers} workers</Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    {data.wait_time !== undefined && (
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Wait Time:
+                        </span>
+                        <div className="font-medium">{data.wait_time}ms</div>
+                      </div>
+                    )}
+                    {data.waiting !== undefined && (
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Waiting:
+                        </span>
+                        <div className="font-medium">{data.waiting}</div>
+                      </div>
+                    )}
+                    {data.idle !== undefined && (
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Idle:
+                        </span>
+                        <div className="font-medium">{data.idle}</div>
+                      </div>
+                    )}
+                    {data.time_to_return !== undefined && (
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Time to Return:
+                        </span>
+                        <div className="font-medium">{data.time_to_return}ms</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -334,32 +329,37 @@ export default function RegionDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Performance Metrics</CardTitle>
+            <CardTitle>Key Metrics</CardTitle>
           </CardHeader>
           <CardContent>
             <MetricChart
               type="bar"
               data={{
-                labels: ["Latency", "Error Rate", "CPU Usage", "Memory Usage"],
+                labels: [
+                  "Wait Time (ms)",
+                  "CPU Load",
+                  "Active Connections",
+                  "CPUs",
+                ],
                 datasets: [
                   {
                     label: "Current Values",
                     data: [
-                      region.data.latency,
-                      parseErrorRate(region.data.errorRate),
-                      region.data.cpuUsage,
-                      region.data.memoryUsage,
+                      server.wait_time,
+                      server.cpu_load,
+                      server.active_connections,
+                      server.cpus,
                     ],
                     backgroundColor: [
                       "rgba(59, 130, 246, 0.6)",
-                      "rgba(239, 68, 68, 0.6)",
                       "rgba(168, 85, 247, 0.6)",
+                      "rgba(20, 184, 166, 0.6)",
                       "rgba(236, 72, 153, 0.6)",
                     ],
                     borderColor: [
                       "rgb(59, 130, 246)",
-                      "rgb(239, 68, 68)",
                       "rgb(168, 85, 247)",
+                      "rgb(20, 184, 166)",
                       "rgb(236, 72, 153)",
                     ],
                     borderWidth: 2,
@@ -368,16 +368,8 @@ export default function RegionDetailPage() {
               }}
               options={{
                 responsive: true,
-                plugins: {
-                  legend: {
-                    display: false,
-                  },
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                  },
-                },
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } },
               }}
             />
           </CardContent>
@@ -394,32 +386,20 @@ export default function RegionDetailPage() {
                   Active Connections
                 </span>
                 <span className="font-semibold">
-                  {formatNumber(region.data.activeConnections)}
+                  {formatNumber(server.active_connections)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Requests/Second
+                  Servers Count
                 </span>
-                <span className="font-semibold">
-                  {region.data.requestsPerSecond}
-                </span>
+                <span className="font-semibold">{stats.servers_count}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Throughput
+                  Online Users
                 </span>
-                <span className="font-semibold">
-                  {formatNumber(region.data.throughput)}/min
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Last Updated
-                </span>
-                <span className="font-semibold">
-                  {formatRelativeTime(region.data.timestamp)}
-                </span>
+                <span className="font-semibold">{formatNumber(stats.online)}</span>
               </div>
             </div>
           </CardContent>
