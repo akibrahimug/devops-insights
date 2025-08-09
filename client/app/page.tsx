@@ -17,6 +17,10 @@ import { CpuCoresCard } from "@/components/dashboard/CpuCoresCard";
 import { CpuLoadComparisonCard } from "@/components/dashboard/CpuLoadComparisonCard";
 import { ThemeToggle } from "@/components/Theme/theme-toggle";
 import { RegionsCard } from "@/components/dashboard/RegionsCard";
+import { InteractiveLoader } from "@/components/loading/InteractiveLoader";
+import { RegionsCardSkeleton } from "@/components/dashboard/RegionsCardSkeleton";
+import { MetricCardsSkeleton } from "@/components/dashboard/MetricCardsSkeleton";
+import { SecondaryStatsSkeleton } from "@/components/dashboard/SecondaryStatsSkeleton";
 import {
   PulseIcon,
   ClockIcon,
@@ -99,6 +103,8 @@ export default function DevOpsDashboard() {
   const [activeRange, setActiveRange] = useState<
     "1m" | "30m" | "1h" | "1d" | "1w" | ""
   >("");
+
+  const isColdStart = !isConnected || Object.keys(metrics || {}).length === 0;
 
   // Process data into regions depending on mode (latest vs history)
   useEffect(() => {
@@ -309,6 +315,28 @@ export default function DevOpsDashboard() {
     disableLive?.();
   };
 
+  if (isColdStart) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 p-6 flex items-center">
+        <div className="max-w-5xl mx-auto w-full space-y-8 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
+                Global DevOps Dashboard
+              </h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-1">Connecting to real-time data…</p>
+            </div>
+            <InteractiveLoader />
+          </div>
+
+          <RegionsCardSkeleton rows={6} />
+          <MetricCardsSkeleton count={4} />
+          <SecondaryStatsSkeleton count={6} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 p-6 transition-all duration-500">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -373,9 +401,14 @@ export default function DevOpsDashboard() {
             )}
             {mode === "history" && activeRange && (
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                {isLoading
-                  ? "Loading..."
-                  : `History ${activeRange} • ${lastUpdated.toLocaleTimeString()}`}
+                {isLoading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
+                    Loading history…
+                  </span>
+                ) : (
+                  `History ${activeRange} • ${lastUpdated.toLocaleTimeString()}`
+                )}
               </div>
             )}
           </div>

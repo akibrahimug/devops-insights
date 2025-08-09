@@ -32,6 +32,8 @@ import {
   getMetricColor,
   parseErrorRate,
 } from "@/lib/helpers/utils";
+import { InteractiveLoader } from "@/components/loading/InteractiveLoader";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface RegionData {
   latency: number;
@@ -76,7 +78,7 @@ export default function RegionDetailPage() {
   useEffect(() => {
     if (Object.keys(metrics).length > 0) {
       const regionKey = params.region as string;
-      const regionData = metrics[regionKey];
+      const regionData = metrics[regionKey] as any;
 
       if (regionData) {
         const data: RegionData = {
@@ -106,13 +108,7 @@ export default function RegionDetailPage() {
           workers: regionData.results?.stats?.server?.workers || [],
         };
 
-        const health = getServerHealthStatus(
-          data.serverStatus,
-          parseErrorRate(data.errorRate),
-          data.latency,
-          data.cpuUsage,
-          data.memoryUsage
-        );
+        const health = getServerHealthStatus(data.serverStatus);
 
         setRegion({
           name: regionKey,
@@ -132,11 +128,16 @@ export default function RegionDetailPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-48 rounded"></div>
+          <Skeleton className="h-8 w-48" />
         </div>
-        <div className="animate-pulse space-y-4">
-          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+          <div className="flex items-center justify-center">
+            <InteractiveLoader label="Fetching region data…" />
+          </div>
         </div>
       </div>
     );
