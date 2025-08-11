@@ -59,7 +59,10 @@ export function RegionsCard({ regions }: RegionsCardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          data-tour="regions-grid"
+        >
           {ordered.map((region, index) => (
             <Link href={`/regions/${region.name}`} key={region.name}>
               <div

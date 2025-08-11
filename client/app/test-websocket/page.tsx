@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Page: TestWebSocket
+ * Simple test page to verify WebSocket connectivity and payloads.
+ */
+
 import { useWebSocket } from "@/app/contexts/WebSocketContext";
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +35,7 @@ export default function TestWebSocket() {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-0 sm:p-6">
       <Card>
         <CardHeader>
           <CardTitle>WebSocket Connection Test</CardTitle>

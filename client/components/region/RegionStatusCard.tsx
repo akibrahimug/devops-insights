@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Component: RegionStatusCard
+ * I summarize the current region status, version, and session count with a
+ * small health indicator.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HealthStatus, formatCompactNumber } from "@/lib/helpers/utils";
 
@@ -9,6 +15,7 @@ interface RegionStatusCardProps {
   version: string;
   sessionCount: number;
   className?: string;
+  footer?: React.ReactNode;
 }
 
 export function RegionStatusCard({
@@ -17,6 +24,7 @@ export function RegionStatusCard({
   version,
   sessionCount,
   className = "",
+  footer,
 }: RegionStatusCardProps) {
   return (
     <Card className={className}>
@@ -55,6 +63,7 @@ export function RegionStatusCard({
             </div>
           </div>
         </div>
+        {footer ? <div className="mt-4">{footer}</div> : null}
       </CardContent>
     </Card>
   );

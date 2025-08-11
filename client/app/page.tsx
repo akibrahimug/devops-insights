@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * Page: DevOpsDashboard
+ * I render the global dashboard, wiring live data via WebSocket, processing
+ * the latest snapshot into per-region cards and summary KPIs, and composing
+ * mini charts and comparisons. I also configure the shared header state.
+ */
+
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWebSocket } from "@/app/contexts/WebSocketContext";
@@ -98,7 +105,8 @@ export default function DevOpsDashboard() {
     });
   }, [isConnected, autoRefreshEnabled, lastUpdated]);
 
-  // Process data into regions (latest only)
+  // Process live snapshot into region models (latest mode only). Filters out
+  // invalid entries and normalizes the shape for downstream components.
   useEffect(() => {
     if (Object.keys(metrics).length === 0) return;
     const processed = Object.entries(metrics)
@@ -128,7 +136,7 @@ export default function DevOpsDashboard() {
     setLastUpdated(new Date());
   }, [metrics]);
 
-  // Debug snapshot (latest only)
+  // Debug snapshot (latest only): optional table of current sources for dev.
   useEffect(() => {
     try {
       const sourcesLatest = Object.keys(metrics || {});
@@ -138,7 +146,7 @@ export default function DevOpsDashboard() {
     } catch {}
   }, [metrics, isConnected]);
 
-  // Initialize / control data flow based on live toggle
+  // Initialize / control data flow based on live toggle and connection.
   useEffect(() => {
     if (!isConnected) return;
     getInitialData();
@@ -146,6 +154,8 @@ export default function DevOpsDashboard() {
     else disableLive?.();
   }, [isConnected, autoRefreshEnabled]);
 
+  // Toggle the live stream and ensure an initial snapshot is loaded when
+  // enabling. Disabling pauses future live updates.
   const toggleAutoRefresh = () => {
     if (!autoRefreshEnabled) {
       setAutoRefreshEnabled(true);
@@ -172,7 +182,7 @@ export default function DevOpsDashboard() {
     }, 0);
   }, [regions]);
 
-  // Chart data: wait time and timers by region (current snapshot)
+  // Derived chart data from current snapshot (latest mode only).
   const chartLabels = useMemo(
     () => regions.map((r) => r.displayName),
     [regions]
@@ -199,7 +209,7 @@ export default function DevOpsDashboard() {
     }, 0);
   }, [regions]);
 
-  // Per-region error rate cards (from serverIssue; null => 0)
+  // Per-region server issue metric (string/number -> number) for cards.
   const regionErrorRates = useMemo(() => {
     const ordered = [...regions].sort((a, b) =>
       a.displayName.localeCompare(b.displayName)
@@ -213,8 +223,8 @@ export default function DevOpsDashboard() {
   }, [regions]);
 
   return (
-    <div className="min-h-screen bg-transparent p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-transparent p-0 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6 px-0 sm:px-0">
         {/* header configured in effect */}
 
         {/* error message */}

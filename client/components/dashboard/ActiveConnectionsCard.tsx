@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: ActiveConnectionsCard
+ * Horizontal bar chart of current active connections per region.
+ */
+
 import {
   Card,
   CardContent,

@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: CompactHistoryCard
+ * A small line chart card with a title and optional icon for a single metric.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricChart } from "@/components/charts/MetricChart";
 import { RangeKey, formatTimeLabelForRange } from "@/lib/helpers/utils";
@@ -16,6 +21,8 @@ interface CompactHistoryCardProps {
   range: RangeKey;
   height?: number;
   className?: string;
+  icon?: (props: { className?: string }) => React.ReactNode;
+  isLoading?: boolean;
 }
 
 export function CompactHistoryCard({
@@ -25,12 +32,17 @@ export function CompactHistoryCard({
   range,
   height = 110,
   className = "",
+  icon,
+  isLoading = false,
 }: CompactHistoryCardProps) {
   return (
     <Card className={className}>
-      <CardHeader className="py-2">
-        <CardTitle className="text-sm text-gray-900 dark:text-white">
-          {title}
+      <CardHeader className="py-3">
+        <CardTitle className="text-sm font-bold text-gray-900 dark:text-white">
+          <span className="inline-flex items-center gap-2">
+            {icon ? icon({}) : null}
+            {title}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -46,9 +58,16 @@ export function CompactHistoryCard({
                 label: title,
                 data: series.map((p) => p.value),
                 borderColor: color,
+                borderWidth: 2,
                 backgroundColor: "rgba(0,0,0,0)",
                 fill: false,
                 tension: 0.4,
+                pointRadius: (ctx: any) => (ctx.dataIndex % 4 === 0 ? 3 : 0),
+                pointHoverRadius: (ctx: any) =>
+                  ctx.dataIndex % 4 === 0 ? 4 : 0,
+                pointBackgroundColor: color,
+                pointBorderColor: "#ffffff",
+                pointBorderWidth: 1,
               },
             ],
           }}
@@ -69,6 +88,7 @@ export function CompactHistoryCard({
               },
             },
           }}
+          isLoading={isLoading}
         />
       </CardContent>
     </Card>

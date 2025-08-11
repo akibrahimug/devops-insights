@@ -14,6 +14,7 @@ interface HeaderConfig {
   onLatestClick?: () => void;
   onHistoryClick?: () => void;
   onToggleRefresh?: () => void;
+  onBack?: () => void;
 }
 
 interface HeaderContextValue extends HeaderConfig {
@@ -30,6 +31,7 @@ export function HeaderProvider({ children }: { children: ReactNode }) {
     lastUpdated: null,
     showHistory: false,
     activeTab: "latest",
+    onBack: undefined,
   });
 
   const value = useMemo<HeaderContextValue>(

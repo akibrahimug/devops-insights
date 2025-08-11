@@ -200,6 +200,22 @@ The application is optimized for Vercel deployment:
 - **Component Optimization** - React best practices
 - **Bundle Optimization** - Tree shaking and code splitting
 
+### Testing
+
+- Framework: Vitest + React Testing Library (jsdom)
+- Commands:
+  - `pnpm test` – run the full suite once
+  - `pnpm test:coverage` – run with coverage reporting
+- Current suite status (latest run):
+  - 10 test files, 61 tests, all passing
+  - Coverage (v8):
+    - Lines: 38.89%
+    - Branches: 64.13%
+    - Functions: 57.14%
+    - Statements: 38.89%
+
+Focus areas include WebSocket business logic, dashboard and region pages, and utility helpers. Additional component-level and end-to-end tests can further increase coverage.
+
 ## 📈 Monitoring & Analytics
 
 The dashboard includes built-in monitoring for:
@@ -208,6 +224,8 @@ The dashboard includes built-in monitoring for:
 - Real-time metric updates
 - Error tracking and display
 - Connection latency indicators
+
+Consider integrating a client-side error and performance monitoring solution (e.g., Sentry for Next.js) with source maps to capture runtime errors, performance traces, and user-impacting issues.
 
 ## 🤝 Contributing
 

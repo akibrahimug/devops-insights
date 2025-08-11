@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Components: Skeletons
+ * Loading placeholders for charts, cards, and dashboard layouts.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -78,8 +83,8 @@ export function StatsGridSkeleton({
 
 export function DashboardPageSkeleton() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 p-0 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6 px-0 sm:px-0">
         <header className="flex items-center justify-between">
           <div className="space-y-2">
             <Skeleton className="h-8 w-80" />
@@ -114,7 +119,7 @@ export function DashboardPageSkeleton() {
 
 export function RegionDetailSkeleton() {
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-0 sm:p-6 space-y-6">
       <div className="flex items-center gap-4">
         <Skeleton className="h-9 w-24" />
         <div className="space-y-2">

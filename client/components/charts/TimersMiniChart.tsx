@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: TimersMiniChart
+ * I render a compact line chart showing active timers per region.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricChart } from "@/components/charts/MetricChart";
 import { useMemo } from "react";
@@ -12,7 +17,7 @@ type RegionInput = {
 
 export function TimersMiniChart({
   regions,
-  height = 150,
+  height = 170,
 }: {
   regions: RegionInput[];
   height?: number;
@@ -39,7 +44,7 @@ export function TimersMiniChart({
             <span>{formatCompactNumber(Math.round(max / 2))}</span>
             <span>0</span>
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <MetricChart
               type="line"
               data={{
@@ -49,9 +54,17 @@ export function TimersMiniChart({
                     label: "Timers",
                     data: values,
                     borderColor: "rgb(124, 58, 237)",
+                    borderWidth: 2,
                     backgroundColor: "rgba(0,0,0,0)",
                     fill: false,
                     tension: 0.6,
+                    pointRadius: (ctx: any) =>
+                      ctx.dataIndex % 4 === 0 ? 3 : 0,
+                    pointHoverRadius: (ctx: any) =>
+                      ctx.dataIndex % 4 === 0 ? 4 : 0,
+                    pointBackgroundColor: "rgb(124, 58, 237)",
+                    pointBorderColor: "#ffffff",
+                    pointBorderWidth: 1,
                     cubicInterpolationMode: "monotone",
                   },
                 ],

@@ -100,7 +100,7 @@
     }
   }
 }
-
+/* create a new layer for the theme */
 @layer base {
   :root {
     --background: 0 0% 100%;

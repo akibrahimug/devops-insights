@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * UI: Accordion
+ * Unstyled Radix Accordion primitives with Tailwind classes.
+ */
+
 import * as React from "react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { cn } from "@/lib/utils";
@@ -22,7 +27,7 @@ const AccordionTrigger = React.forwardRef<
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        "flex flex-1 items-center justify-between py-2 text-left text-sm font-medium transition-all",
+        "flex flex-1 items-center justify-between py-2 text-left text-sm font-medium transition-all cursor-pointer",
         "text-gray-800 dark:text-gray-200",
         "hover:text-gray-900 dark:hover:text-white",
         className

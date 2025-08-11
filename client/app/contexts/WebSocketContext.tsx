@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Context: WebSocketContext
+ * Provides a single Socket.IO connection and convenience APIs to get latest
+ * metrics, subscribe/unsubscribe to sources, toggle live updates, and fetch
+ * historical data. I maintain derived UI state like connection status and
+ * last update timestamps.
+ */
+
 import {
   createContext,
   useContext,
@@ -58,7 +66,7 @@ export interface WebSocketState {
 // Define the context
 const WebSocketContext = createContext<WebSocketState | null>(null);
 
-// Get the backend URL from the environment variables
+// Resolve backend origin once. Falls back to localhost during dev.
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -89,7 +97,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     liveEnabledRef.current = liveEnabled;
   }, [liveEnabled]);
 
-  // Use effect to initialize the socket connection
+  // Initialize the Socket.IO connection once on mount. I set up
+  // connection lifecycle handlers, latest snapshot and live update channels,
+  // and a history channel for time window queries.
   useEffect(() => {
     // Initialize Socket.IO connection
     const newSocket = io(BACKEND_URL, {
@@ -121,6 +131,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     });
 
     // Metrics event handlers
+    // Latest snapshot payload. If a source is provided, I update just that key;
+    // otherwise the payload contains a map of all sources.
     newSocket.on("metrics:data", (data: MetricsResponse) => {
       // Only log in live mode; still process payload for initial/latest snapshots
       if (liveEnabledRef.current) {
@@ -167,6 +179,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     });
 
     // Real-time metrics updates
+    // Live streaming updates for individual sources (suppressed in history mode).
     newSocket.on("metrics-update", (data: MetricsResponse) => {
       // In history mode, suppress logs and updates entirely
       if (!liveEnabledRef.current) return;
@@ -190,6 +203,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     });
 
     // Historical data events
+    // History payload returns an array of items within the requested window.
     newSocket.on(
       "metrics:history",
       (payload: {
@@ -212,19 +226,45 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           items: payload.items,
         });
 
-        // Sort newest first to ensure UI sees fresh data immediately
-        const sorted = [...payload.items].sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setHistory(
-          sorted.map((it) => ({
+        // Merge new history data with existing data, avoiding duplicates
+        setHistory((prevHistory) => {
+          const newItems = payload.items.map((it) => ({
             source: it.source,
             data: it.data,
             createdAt: it.createdAt,
             updatedAt: it.updatedAt,
-          }))
-        );
+          }));
+
+          // Create a map of existing items by unique key (source + createdAt)
+          const existingMap = new Map<
+            string,
+            {
+              source: string;
+              data: MetricData;
+              createdAt: string;
+              updatedAt?: string;
+            }
+          >();
+          prevHistory.forEach((item) => {
+            const key = `${item.source}-${item.createdAt}`;
+            existingMap.set(key, item);
+          });
+
+          // Add new items if they don't already exist
+          newItems.forEach((item) => {
+            const key = `${item.source}-${item.createdAt}`;
+            if (!existingMap.has(key)) {
+              existingMap.set(key, item);
+            }
+          });
+
+          // Convert back to array and sort newest first
+          const merged = Array.from(existingMap.values()).sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          return merged;
+        });
         setLastUpdate(new Date());
       }
     );
@@ -238,7 +278,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Subscribe to metrics for a given source
+  // Subscribe to metrics for a given source.
   const subscribeToSource = (source: string) => {
     if (socket && isConnected) {
       console.log(`Subscribing to metrics for source: ${source}`);
@@ -246,7 +286,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Unsubscribe from metrics for a given source
+  // Unsubscribe from metrics for a given source.
   const unsubscribeFromSource = (source: string) => {
     if (socket && isConnected) {
       console.log(`Unsubscribing from metrics for source: ${source}`);
@@ -254,7 +294,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Get the initial data for a given source
+  // Request the latest snapshot for a source or all sources.
   const getInitialData = (source?: string) => {
     // If the socket is connected, emit the request to get the initial data
     if (socket && isConnected) {
@@ -268,7 +308,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Get historical data for a time window
+  // Request historical data for a time window (clears existing history first
+  // to avoid mixing ranges in the UI).
   const getHistory = (params: {
     source?: string;
     from?: string;
@@ -276,7 +317,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     limit?: number;
   }) => {
     if (socket && isConnected) {
-      console.log("Requesting history with params:", params);
+      // Clear existing history when making a new request to avoid mixing time ranges
+      setHistory([]);
+      console.log("Cleared existing history for new request");
+      // Emit the request to get the history data
       socket.emit("metrics:getHistory", params || {});
     } else {
       console.warn("Cannot request history: socket not connected", {
@@ -286,6 +330,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Toggle live streaming mode for the UI (history mode disables live updates).
   const disableLive = () => setLiveEnabled(false);
   const enableLive = () => setLiveEnabled(true);
 

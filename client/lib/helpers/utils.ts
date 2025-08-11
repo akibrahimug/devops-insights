@@ -1,4 +1,4 @@
-// Formatting utilities for DevOps metrics
+// Utilities for formatting, thresholds, and chart helpers across the app.
 
 /**
  * Capitalize first letter of each word
@@ -41,6 +41,7 @@ export function formatNumber(num: number): string {
 /**
  * Format number in compact form (e.g., 12k, 3.4m)
  */
+/** Compact number format (e.g., 12k, 3.4m). */
 export function formatCompactNumber(
   num: number,
   maximumFractionDigits: number = 1
@@ -56,6 +57,7 @@ export function formatCompactNumber(
 /**
  * Format percentage with specified decimals
  */
+/** Format a percentage with fixed decimals. */
 export function formatPercentage(
   value: number | string,
   decimals: number = 2
@@ -67,6 +69,7 @@ export function formatPercentage(
 /**
  * Format bytes to human readable format
  */
+/** Human readable bytes formatter. */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -78,6 +81,7 @@ export function formatBytes(bytes: number): string {
 /**
  * Format timestamp to relative time
  */
+/** Relative time formatter (e.g., 5m ago). */
 export function formatRelativeTime(timestamp: string): string {
   const date = new Date(timestamp);
   const now = new Date();
@@ -92,6 +96,7 @@ export function formatRelativeTime(timestamp: string): string {
 /**
  * Get health status based on multiple metrics
  */
+/** Health status mapping used by region status components. */
 export interface HealthStatus {
   codename: string;
   status: "healthy" | "warning" | "critical" | "amber";
@@ -104,6 +109,7 @@ export interface HealthStatus {
 /**
  * Get health status based on server status from API
  */
+/** Map server status to a health status object. */
 export function getServerHealthStatus(serverStatus: string): HealthStatus {
   // If server status is "ok", check error rate for amber status
   if (serverStatus === "ok") {
@@ -141,6 +147,7 @@ export function getServerHealthStatus(serverStatus: string): HealthStatus {
 /**
  * Get color based on metric value and thresholds
  */
+/** Return a Tailwind text color based on thresholds. */
 export function getMetricColor(
   value: number,
   thresholds: { good: number; warning: number; critical: number },
@@ -162,6 +169,7 @@ export function getMetricColor(
 /**
  * Get gradient color for charts based on metric type
  */
+/** Chart color presets for common metric types. */
 export function getChartColor(metricType: string): {
   border: string;
   background: string;
@@ -204,6 +212,7 @@ export function getChartColor(metricType: string): {
 /**
  * Parse error rate string to number
  */
+/** Parse error rate from string or number to number. */
 export function parseErrorRate(errorRate: string | number): number {
   return typeof errorRate === "string" ? parseFloat(errorRate) : errorRate;
 }
@@ -211,6 +220,7 @@ export function parseErrorRate(errorRate: string | number): number {
 /**
  * Get performance rating
  */
+/** Heuristic performance rating from latency and throughput. */
 export function getPerformanceRating(
   latency: number,
   throughput: number
@@ -226,6 +236,7 @@ export function getPerformanceRating(
 /**
  * Format uptime from timestamp
  */
+/** Format an uptime duration from a start timestamp. */
 export function formatUptime(timestamp: string): string {
   const startTime = new Date(timestamp);
   const now = new Date();
@@ -258,9 +269,12 @@ export const RANGE_MS = {
   "1w": { windowMs: 7 * 24 * 60 * 60_000, bucketMs: 60 * 60_000 },
 } as const satisfies Record<RangeKey, { windowMs: number; bucketMs: number }>;
 
+/** Milliseconds for a full history window for a given range. */
 export const windowMsForRange = (key: RangeKey) => RANGE_MS[key].windowMs;
+/** Milliseconds for a single aggregation bucket for a given range. */
 export const bucketMsForRange = (key: RangeKey) => RANGE_MS[key].bucketMs;
 
+/** Time label formatting aligned with the chosen history range. */
 export function formatTimeLabelForRange(
   dateLike: string | number | Date,
   range: RangeKey
@@ -298,6 +312,7 @@ export function formatTimeLabelForRange(
 /**
  * Calculate trend based on current and previous values
  */
+/** Percentage trend and direction between two values. */
 export function calculateTrend(
   current: number,
   previous: number
