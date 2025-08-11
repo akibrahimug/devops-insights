@@ -30,7 +30,6 @@ class Config {
   public CLIENT_URL: string | undefined;
   public REDIS_HOST: string | undefined;
   public EXTERNAL_API_NAME: string | undefined;
-  public REDIS_REQUIRED: string | undefined;
   public PORT: number | undefined;
   // Default MongoDB connection string for local development environment
   private readonly DEFAULT_DATABASE_URL =
@@ -43,7 +42,6 @@ class Config {
     this.CLIENT_URL = process.env.CLIENT_URL || '';
     this.REDIS_HOST = process.env.REDIS_HOST || '';
     this.EXTERNAL_API_NAME = process.env.EXTERNAL_API_NAME || '';
-    this.REDIS_REQUIRED = process.env.REDIS_REQUIRED || '';
     this.PORT = parseInt(process.env.PORT || '5000');
   }
 
