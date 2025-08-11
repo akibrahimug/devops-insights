@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: WaitTimeMiniChart
+ * I render a compact line chart showing server wait time per region.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricChart } from "@/components/charts/MetricChart";
 import { useMemo } from "react";
@@ -12,7 +17,7 @@ type RegionInput = {
 
 export function WaitTimeMiniChart({
   regions,
-  height = 150,
+  height = 170,
 }: {
   regions: RegionInput[];
   height?: number;
@@ -47,12 +52,20 @@ export function WaitTimeMiniChart({
                 labels,
                 datasets: [
                   {
-                    label: "Wait Time (ms)",
+                    label: "Wait Time",
                     data: values,
-                    borderColor: "rgb(59, 130, 246)",
+                    borderColor: "rgb(14, 165, 233)",
+                    borderWidth: 2,
                     backgroundColor: "rgba(0,0,0,0)",
                     fill: false,
                     tension: 0.6,
+                    pointRadius: (ctx: any) =>
+                      ctx.dataIndex % 4 === 0 ? 3 : 0,
+                    pointHoverRadius: (ctx: any) =>
+                      ctx.dataIndex % 4 === 0 ? 4 : 0,
+                    pointBackgroundColor: "rgb(14, 165, 233)",
+                    pointBorderColor: "#ffffff",
+                    pointBorderWidth: 1,
                     cubicInterpolationMode: "monotone",
                   },
                 ],

@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: OnlineMiniChart
+ * I render a compact line chart showing current online sessions per region.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricChart } from "@/components/charts/MetricChart";
 import { useMemo } from "react";
@@ -12,7 +17,7 @@ type RegionInput = {
 
 export function OnlineMiniChart({
   regions,
-  height = 65,
+  height = 70,
 }: {
   regions: RegionInput[];
   height?: number;
@@ -26,21 +31,11 @@ export function OnlineMiniChart({
     () => (values.length ? Math.max(...values) : 0),
     [values]
   );
-  const gradientColor = (ctx: any) => {
-    const { chart } = ctx;
-    const { ctx: c, chartArea } = chart || {};
-    if (!chartArea) return "rgb(34, 197, 94)";
-    const grad = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-    grad.addColorStop(0, "rgba(239, 68, 68, 1)"); // red
-    grad.addColorStop(0.5, "rgba(245, 158, 11, 1)"); // amber
-    grad.addColorStop(1, "rgba(34, 197, 94, 1)"); // green
-    return grad;
-  };
 
   return (
-    <Card className="hidden md:block border-0 shadow dark:bg-gray-800/50 backdrop-blur">
-      <CardHeader className="py-2">
-        <CardTitle className="text-sm">Online by Region</CardTitle>
+    <Card className="border-0 shadow dark:bg-gray-800/50 backdrop-blur ">
+      <CardHeader>
+        <CardTitle>Online by Region</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex items-stretch gap-3">
@@ -58,10 +53,18 @@ export function OnlineMiniChart({
                   {
                     label: "Online",
                     data: values,
-                    borderColor: (c: any) => gradientColor(c),
+                    borderColor: "rgb(34, 197, 94)",
+                    borderWidth: 2,
                     backgroundColor: "rgba(0,0,0,0)",
                     fill: false,
-                    tension: 0.5,
+                    tension: 0.6,
+                    pointRadius: (ctx: any) =>
+                      ctx.dataIndex % 4 === 0 ? 3 : 0,
+                    pointHoverRadius: (ctx: any) =>
+                      ctx.dataIndex % 4 === 0 ? 4 : 0,
+                    pointBackgroundColor: "rgb(34, 197, 94)",
+                    pointBorderColor: "#ffffff",
+                    pointBorderWidth: 1,
                     cubicInterpolationMode: "monotone",
                   },
                 ],

@@ -1,12 +1,15 @@
 "use client";
 
+/**
+ * Component: AppHeader
+ * I display the page title, live connection status, a theme toggle, tabs for
+ * latest/history, and a control to toggle auto-refresh.
+ */
+
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/Theme/theme-toggle";
-import {
-  WifiHigh as WifiHighIcon,
-  ArrowsClockwise as ArrowsClockwiseIcon,
-} from "@phosphor-icons/react";
+import { WifiHighIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
 
 interface AppHeaderProps {
   title?: string;
@@ -34,7 +37,7 @@ export function AppHeader({
   return (
     <header className="flex items-center justify-between animate-fade-in">
       <div className="animate-slide-in-left">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
+        <h1 className="hidden lg:block text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
           {title}
         </h1>
         <p className="text-gray-600 dark:text-gray-300 flex items-center gap-2 mt-1">
@@ -80,6 +83,7 @@ export function AppHeader({
                   value="history"
                   className="px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   onClick={onHistoryClick}
+                  data-tour="history-tab"
                 >
                   History
                 </TabsTrigger>
@@ -99,6 +103,7 @@ export function AppHeader({
                 ? "text-blue-600 hover:text-blue-700"
                 : "text-gray-500 hover:text-gray-700"
             }
+            data-tour="auto-refresh"
           >
             <ArrowsClockwiseIcon size={18} weight="bold" />
           </Button>

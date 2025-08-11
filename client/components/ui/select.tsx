@@ -1,5 +1,7 @@
 "use client";
 
+/** UI: Select – Radix Select with Tailwind styling. */
+
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import {

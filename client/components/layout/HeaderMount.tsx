@@ -1,6 +1,13 @@
 "use client";
 
+/**
+ * Component: HeaderMount
+ * I read header config from context and render the `AppHeader` and the
+ * onboarding tour in the page layout.
+ */
+
 import { AppHeader } from "@/components/layout/AppHeader";
+import OnboardingHelpTour from "@/components/layout/OnboardingHelpTour";
 import { useHeader } from "@/app/contexts/HeaderContext";
 
 export default function HeaderMount() {
@@ -29,6 +36,7 @@ export default function HeaderMount() {
         activeTab={activeTab || "latest"}
         lastUpdated={lastUpdated || null}
       />
+      <OnboardingHelpTour />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// History utilities for aggregations and chart-friendly transforms
+// History utilities for aggregations and chart-friendly transforms.
 // These helpers operate on the WebSocket `metrics:history` payload shape.
 
 export interface HistoryItem<T = any> {
@@ -13,6 +13,7 @@ export type MetricExtractor<T = any> = (data: T) => number;
 
 /* ---------- core helpers ---------- */
 
+/** Safe nested getter with a default fallback. */
 export function getIn(object: any, path: string | string[], defaultValue = 0) {
   const segments = Array.isArray(path) ? path : String(path).split(".");
   let cursor: any = object;
@@ -24,6 +25,7 @@ export function getIn(object: any, path: string | string[], defaultValue = 0) {
   return Number.isFinite(n) ? (n as number) : defaultValue;
 }
 
+/** Filter items to a time window (inclusive). */
 export function filterByRange<T = any>(
   items: HistoryItem<T>[],
   range?: { from?: string; to?: string }
@@ -37,6 +39,7 @@ export function filterByRange<T = any>(
   });
 }
 
+/** Group items by their `source` field. */
 export function groupBySource<T = any>(items: HistoryItem<T>[]) {
   const map = new Map<string, HistoryItem<T>[]>();
   for (const it of items) {
@@ -49,6 +52,7 @@ export function groupBySource<T = any>(items: HistoryItem<T>[]) {
 
 /* ---------- aggregations ---------- */
 
+/** Sum a metric across all sources in an optional range. */
 export function sumAcrossAllSources<T = any>(
   items: HistoryItem<T>[],
   extractor: MetricExtractor<T>,
@@ -58,6 +62,7 @@ export function sumAcrossAllSources<T = any>(
   return filtered.reduce((acc, it) => acc + (extractor(it.data) || 0), 0);
 }
 
+/** Sum a metric per source in an optional range. */
 export function sumPerSource<T = any>(
   items: HistoryItem<T>[],
   extractor: MetricExtractor<T>,
@@ -75,6 +80,10 @@ export function sumPerSource<T = any>(
 /**
  * Compress history by time buckets (default: minute) and sum across sources
  * Useful for building global time-series lines.
+ */
+/**
+ * Compress history by time buckets and sum across sources. Useful for single
+ * global series lines.
  */
 export function compressByTime<T = any>(
   items: HistoryItem<T>[],
@@ -98,6 +107,7 @@ export function compressByTime<T = any>(
 /**
  * Per-source time compression: for each source, sum the metric per time bucket.
  */
+/** Per-source bucketed compression into aligned time-series arrays. */
 export function compressPerSourceByTime<T = any>(
   items: HistoryItem<T>[],
   extractor: MetricExtractor<T>,
@@ -108,14 +118,33 @@ export function compressPerSourceByTime<T = any>(
   const bySrc = groupBySource(filtered);
   const out: Record<string, Array<{ bucketStart: string; value: number }>> = {};
 
+  // Determine the full time range to fill
+  const now = new Date();
+  const defaultFrom = new Date(now.getTime() - bucketMs * 60); // 60 buckets by default
+  const fromTime = range?.from ? new Date(range.from) : defaultFrom;
+  const toTime = range?.to ? new Date(range.to) : now;
+
   for (const [src, list] of bySrc) {
     const buckets = new Map<number, number>();
+
+    // Fill existing data
     for (const it of list) {
       const ts = new Date(it.createdAt).getTime();
       const bucket = Math.floor(ts / bucketMs) * bucketMs;
       const prev = buckets.get(bucket) || 0;
       buckets.set(bucket, prev + (extractor(it.data) || 0));
     }
+
+    // Fill complete time range
+    const startBucket = Math.floor(fromTime.getTime() / bucketMs) * bucketMs;
+    const endBucket = Math.floor(toTime.getTime() / bucketMs) * bucketMs;
+
+    for (let bucket = startBucket; bucket <= endBucket; bucket += bucketMs) {
+      if (!buckets.has(bucket)) {
+        buckets.set(bucket, 0);
+      }
+    }
+
     out[src] = Array.from(buckets.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([ms, value]) => ({
@@ -129,30 +158,37 @@ export function compressPerSourceByTime<T = any>(
 
 /* ---------- common extractors (cards/charts) ---------- */
 
+/** Extract session count from history data. */
 export const extractSessions: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "session"], 0);
 
+/** Extract active connections from history data. */
 export const extractActiveConnections: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "server", "active_connections"], 0);
 
+/** Extract requests per second from history data. */
 export const extractRequestsPerSecond: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "server", "rps"], 0);
 
+/** Extract CPU load from history data. */
 export const extractCpuLoad: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "server", "cpu_load"], 0);
 
+/** Extract CPU core count from history data. */
 export const extractCpus: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "server", "cpus"], 0);
 
+/** Extract wait time from history data. */
 export const extractWaitTime: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "server", "wait_time"], 0);
 
+/** Extract timers from history data. */
 export const extractTimers: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "server", "timers"], 0);
 
+/** Extract online user count from history data. */
 export const extractOnline: MetricExtractor = (data: any) =>
   getIn(data, ["results", "stats", "online"], 0);
-
 // Heuristic extractors for memory and disk usage; adjust paths as real payload requires
 export const extractMemoryUsage: MetricExtractor = (data: any) => {
   const candidates = [

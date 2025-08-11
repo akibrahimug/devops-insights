@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: ThemeToggle
+ * Button that switches between light and dark themes.
+ */
+
 import * as React from "react";
 import { Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";

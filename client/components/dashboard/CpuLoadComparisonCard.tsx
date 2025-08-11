@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: CpuLoadComparisonCard
+ * Compares a selected region's CPU load against the global average.
+ */
+
 import { useMemo, useState } from "react";
 import {
   Card,

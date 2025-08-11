@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: MetricMiniCard
+ * Small metric tile with a title, icon, and formatted value.
+ */
+
 import { Card, CardContent } from "@/components/ui/card";
 
 export function MetricMiniCard({

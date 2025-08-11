@@ -1,5 +1,7 @@
 "use client";
 
+/** UI: Progress – simple clamped 0-100 progress bar. */
+
 import * as React from "react";
 import { cn } from "@/lib/utils";
 

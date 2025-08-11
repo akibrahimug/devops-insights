@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: HistoryResourceStats
+ * Compact KPI panel showing active connections, CPUs, and wait time with bars.
+ */
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { formatCompactNumber } from "@/lib/helpers/utils";
@@ -16,12 +21,14 @@ interface HistoryResourceStatsProps {
   className?: string;
 }
 
+/** Calculates average value over a series. */
 function average(series: SeriesPoint[]): number {
   if (!series?.length) return 0;
   const sum = series.reduce((acc, p) => acc + (Number(p.value) || 0), 0);
   return sum / series.length;
 }
 
+/** Returns the maximum value in a series. */
 function max(series: SeriesPoint[]): number {
   return series.reduce(
     (m, p) => (Number(p.value) > m ? Number(p.value) : m),

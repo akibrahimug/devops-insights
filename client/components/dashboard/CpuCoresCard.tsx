@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Component: CpuCoresCard
+ * Line chart comparing CPU core counts across regions.
+ */
+
 import {
   Card,
   CardContent,
