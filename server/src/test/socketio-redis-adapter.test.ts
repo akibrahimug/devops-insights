@@ -59,8 +59,12 @@ describe('Socket.IO Redis adapter wiring', () => {
     // suppress change stream wiring by faking availability to false
     // @ts-ignore
     server.changeStreamsAvailable = async () => false;
-    await server.start();
-    config.REDIS_HOST = old;
-    expect(true).toBe(true);
+    try {
+      await server.start();
+      expect(true).toBe(true);
+    } finally {
+      await server.stop();
+      config.REDIS_HOST = old;
+    }
   });
 });

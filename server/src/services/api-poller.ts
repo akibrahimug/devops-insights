@@ -35,10 +35,9 @@ interface ExternalApi {
 export class ApiPollerService {
   private io: SocketIOServer | null = null;
   private intervals = new Map<string, NodeJS.Timeout>();
-  private apiName = (process.env.EXTERNAL_API_NAME || '').toLowerCase();
+  private apiName = (config.EXTERNAL_API_NAME || '').toLowerCase();
   private leader?: RedisLeaderLock;
   private cancelRetry?: () => void;
-
   /** When true, poller emits directly instead of relying on change streams */
   private directEmit = false;
   public enableDirectEmit() {

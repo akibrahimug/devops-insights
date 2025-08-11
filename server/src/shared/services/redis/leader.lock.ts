@@ -52,7 +52,8 @@ export class RedisLeaderLock {
     this.renewEveryMs =
       params.renewEveryMs ?? Math.floor((params.ttlMs ?? 30000) / 2);
     this.client =
-      params.client ?? createClient({ url: config.REDIS_HOST || undefined });
+      params.client ??
+      createClient({ url: config.REDIS_HOST ? config.REDIS_HOST : undefined });
     this.instanceId = `${os.hostname()}:${process.pid}:${crypto
       .randomBytes(6)
       .toString('hex')}`;
