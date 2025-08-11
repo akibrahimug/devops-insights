@@ -11,6 +11,8 @@ import http, { Server as HttpServer } from 'http';
 import express, { Application, json, urlencoded } from 'express';
 import compression from 'compression';
 import { Server as SocketIOServer, Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient as createRedisClient } from 'redis';
 import mongoose from 'mongoose';
 import { wireMetricChangeStream } from '@root/services/change-streams';
 import { apiPoller } from '@root/services/api-poller';
@@ -42,7 +44,7 @@ export class DevopsInsightsServer {
   public async start() {
     if (this.started) return;
     await this.connectMongo();
-    this.createHttpAndSockets();
+    await this.createHttpAndSockets();
     this.configureMiddleware();
     this.configureSocketRooms();
 
@@ -93,11 +95,25 @@ export class DevopsInsightsServer {
     }
   }
 
-  private createHttpAndSockets() {
+  private async createHttpAndSockets() {
     this.server = http.createServer(this.app);
     this.io = new SocketIOServer(this.server, {
       cors: { origin: '*', methods: ['GET', 'POST'] },
     });
+
+    // Wire Socket.IO Redis adapter when REDIS_HOST is provided
+    try {
+      if (config.REDIS_HOST) {
+        const pubClient = createRedisClient({ url: config.REDIS_HOST });
+        const subClient = pubClient.duplicate();
+        await pubClient.connect();
+        await subClient.connect();
+        this.io.adapter(createAdapter(pubClient, subClient));
+        console.log('Socket.IO Redis adapter enabled');
+      }
+    } catch (err) {
+      console.warn('Failed to enable Socket.IO Redis adapter:', err);
+    }
   }
 
   private configureMiddleware() {

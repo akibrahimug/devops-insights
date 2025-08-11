@@ -18,6 +18,7 @@ import {
 import Logger from 'bunyan';
 import { config } from '@root/config';
 import apiRegions from '@root/static/api-regions.json';
+import { RedisLeaderLock } from '@services/redis/leader.lock';
 
 const log: Logger = config.createLogger('api-poller');
 
@@ -34,12 +35,28 @@ interface ExternalApi {
 export class ApiPollerService {
   private io: SocketIOServer | null = null;
   private intervals = new Map<string, NodeJS.Timeout>();
-  private apiName = (process.env.EXTERNAL_API_NAME || 'upscope').toLowerCase();
+  private apiName = (process.env.EXTERNAL_API_NAME || '').toLowerCase();
+  private leader?: RedisLeaderLock;
+  private cancelRetry?: () => void;
 
   /** When true, poller emits directly instead of relying on change streams */
   private directEmit = false;
   public enableDirectEmit() {
     this.directEmit = true;
+  }
+  private beginIntervals() {
+    // poll the api
+    this.apis.forEach((api) => {
+      const key = `${api.name}:${api.source}`;
+      // initial immediate poll
+      void this.pollOnce(api);
+      // set periodic interval
+      this.intervals.set(
+        key,
+        setInterval(() => void this.pollOnce(api), api.interval),
+      );
+    });
+    log.info(`Polling ${this.intervals.size} API targets`);
   }
 
   // map the sources to the api name and url
@@ -61,24 +78,30 @@ export class ApiPollerService {
   public async startPolling() {
     // stop polling if the intervals are not empty
     if (this.intervals.size) this.stopPolling(); // idempotent
-    // poll the api
-    this.apis.forEach((api) => {
-      // set the key(api name and source)
-      const key = `${api.name}:${api.source}`;
-      // kick-off the polling
-      void this.pollOnce(api);
-      // set the interval
-      this.intervals.set(
-        key,
-        setInterval(() => void this.pollOnce(api), api.interval),
-      );
-    });
-    log.info(`Polling ${this.intervals.size} API targets`);
+    // If Redis is configured, attempt to become leader before polling
+    if (config.REDIS_HOST) {
+      this.leader = new RedisLeaderLock({
+        key: `devops-insights:poller:leader:${this.apiName}`,
+        ttlMs: 30000,
+      });
+      this.cancelRetry = this.leader.startRetryAcquire(async () => {
+        // On becoming leader, start intervals
+        this.beginIntervals();
+      });
+      log.info('Attempting leader election via Redis for API poller');
+      return; // do not start intervals until leader
+    }
+    // No Redis → single instance mode
+    this.beginIntervals();
   }
 
   public stopPolling() {
+    if (this.cancelRetry) this.cancelRetry();
+    this.cancelRetry = undefined;
     this.intervals.forEach(clearInterval);
     this.intervals.clear();
+    void this.leader?.release().catch(() => {});
+    this.leader = undefined;
   }
 
   /* ---------- core polling ---------- */
