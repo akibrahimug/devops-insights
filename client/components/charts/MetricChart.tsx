@@ -146,19 +146,27 @@ export function MetricChart({
 
   if (isLoading || !hasData) {
     return (
-      <div style={{ height: `${height}px` }}>
+      <div
+        className="relative w-full max-w-full overflow-hidden min-w-0"
+        style={{ height: `${height}px` }}
+      >
         <Skeleton className="w-full h-full rounded-md" />
       </div>
     );
   }
 
   return (
-    <div style={{ height: `${height}px` }}>
+    <div
+      className="relative w-full max-w-full overflow-hidden min-w-0"
+      style={{ height: `${height}px` }}
+    >
       <Chart
         ref={chartRef}
         type={type}
         data={data}
         options={getThemedOptions()}
+        className="!w-full !h-full block"
+        style={{ width: "100%", height: "100%" }}
       />
     </div>
   );

@@ -9,7 +9,11 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/Theme/theme-toggle";
-import { WifiHighIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
+import {
+  WifiHighIcon,
+  ArrowsClockwiseIcon,
+  ArrowLeft,
+} from "@phosphor-icons/react";
 
 interface AppHeaderProps {
   title?: string;
@@ -21,6 +25,7 @@ interface AppHeaderProps {
   showHistoryTab?: boolean;
   activeTab?: "latest" | "history";
   lastUpdated?: Date | null;
+  onBack?: () => void;
 }
 
 export function AppHeader({
@@ -33,16 +38,38 @@ export function AppHeader({
   showHistoryTab = false,
   activeTab = "latest",
   lastUpdated,
+  onBack,
 }: AppHeaderProps) {
   return (
     <header className="flex items-center justify-between animate-fade-in">
-      <div className="animate-slide-in-left">
+      <div className="flex items-center gap-2 animate-slide-in-left">
+        {onBack && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              aria-label="Go back"
+              title="Back"
+            >
+              <ArrowLeft className="h-4 w-2" />
+            </Button>
+            <span
+              aria-hidden
+              className="h-6 w-px bg-gray-200 dark:bg-gray-700"
+            />
+          </>
+        )}
         <h1 className="hidden lg:block text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
           {title}
         </h1>
+        <span
+          aria-hidden
+          className="hidden lg:block h-6 w-px bg-gray-200 dark:bg-gray-700"
+        />
         <p className="text-gray-600 dark:text-gray-300 flex items-center gap-2 mt-1">
           <WifiHighIcon
-            size={32}
+            size={20}
             weight="bold"
             className={
               !connected
@@ -59,15 +86,20 @@ export function AppHeader({
                 : "Live streaming paused"
             }
           />
-          {autoRefreshEnabled
-            ? connected
-              ? "Connected to real-time data"
-              : "Disconnected"
-            : null}
+          {autoRefreshEnabled ? (
+            connected ? (
+              <span className="hidden md:inline">
+                Connected to real-time data
+              </span>
+            ) : (
+              <span className="hidden md:inline">Disconnected</span>
+            )
+          ) : null}
         </p>
       </div>
       <div className="flex items-center gap-3 animate-slide-in-right">
         <ThemeToggle />
+        <span aria-hidden className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
         <div className="flex items-center gap-2 border rounded-md px-1 py-1 dark:border-gray-700">
           <Tabs value={activeTab}>
             <TabsList className="bg-transparent p-0 gap-1">
@@ -108,6 +140,11 @@ export function AppHeader({
             <ArrowsClockwiseIcon size={18} weight="bold" />
           </Button>
         </div>
+        <span
+          aria-hidden
+          className="h-6 lg:w-px
+ bg-gray-200 dark:bg-gray-700"
+        />
         {lastUpdated && (
           <div className="text-xs text-gray-500 dark:text-gray-400">
             Latest data • {lastUpdated.toLocaleTimeString()}

@@ -172,6 +172,7 @@ export default function RegionDetailPage() {
       showHistory: true,
       activeTab: mode,
       lastUpdated,
+      onBack: handleBack,
     });
   }, [region?.displayName, isConnected, mode, lastUpdated]);
 
@@ -252,12 +253,7 @@ export default function RegionDetailPage() {
   return (
     <div className="min-h-screen bg-transparent p-0 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6 px-0 sm:px-0">
-        <RegionHeader
-          onBack={handleBack}
-          mode={mode}
-          range={range}
-          onRangeChange={setRange}
-        />
+        <RegionHeader mode={mode} range={range} onRangeChange={setRange} />
 
         <RegionStatusSection
           mode={mode}

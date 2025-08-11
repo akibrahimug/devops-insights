@@ -44,7 +44,7 @@ export function OnlineMiniChart({
             <span>{formatCompactNumber(Math.round(max / 2))}</span>
             <span>0</span>
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <MetricChart
               type="line"
               data={{

@@ -6,13 +6,10 @@
  * a time-range selector.
  */
 
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from "@phosphor-icons/react";
 import { RangeKey } from "@/lib/helpers/utils";
 
 interface RegionHeaderProps {
-  onBack: () => void;
   mode: "latest" | "history";
   range: RangeKey;
   onRangeChange: (range: RangeKey) => void;
@@ -28,19 +25,13 @@ const timepicker = [
 ];
 
 export function RegionHeader({
-  onBack,
   mode,
   range,
   onRangeChange,
 }: RegionHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-      </div>
+    <div className="flex items-center justify-center lg:justify-between mb-6">
+      <div className="flex items-center gap-3" />
       {mode === "history" && (
         <Tabs value={range} onValueChange={(v) => onRangeChange(v as RangeKey)}>
           <TabsList className="gap-1">

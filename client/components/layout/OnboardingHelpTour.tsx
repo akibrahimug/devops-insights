@@ -315,7 +315,7 @@ export default function OnboardingHelpTour() {
         </div>
         <div className="mt-3 flex items-center justify-between">
           <button
-            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
             onClick={skipAll}
           >
             Skip
@@ -325,7 +325,7 @@ export default function OnboardingHelpTour() {
               {activeIndex + 1} / {steps.length}
             </div>
             <button
-              className="px-2 py-1 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              className="px-2 py-1 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
               onClick={goNext}
             >
               {activeIndex + 1 === steps.length ? "Done" : "Next"}

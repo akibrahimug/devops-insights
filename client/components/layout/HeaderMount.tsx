@@ -9,8 +9,10 @@
 import { AppHeader } from "@/components/layout/AppHeader";
 import OnboardingHelpTour from "@/components/layout/OnboardingHelpTour";
 import { useHeader } from "@/app/contexts/HeaderContext";
+import { usePathname } from "next/navigation";
 
 export default function HeaderMount() {
+  const pathname = usePathname();
   const {
     title,
     connected,
@@ -21,10 +23,11 @@ export default function HeaderMount() {
     showHistory,
     activeTab,
     lastUpdated,
+    onBack,
   } = useHeader();
 
   return (
-    <div className="max-w-7xl mx-auto px-6 pt-6">
+    <div className="max-w-7xl mx-auto pl-2 py-6">
       <AppHeader
         title={title}
         connected={!!connected}
@@ -35,6 +38,7 @@ export default function HeaderMount() {
         showHistoryTab={!!showHistory}
         activeTab={activeTab || "latest"}
         lastUpdated={lastUpdated || null}
+        onBack={pathname === "/" ? undefined : onBack}
       />
       <OnboardingHelpTour />
     </div>
