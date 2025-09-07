@@ -27,6 +27,12 @@ interface RegionStatusSectionProps {
   redisUp: boolean;
   range: RangeKey;
   activeConnectionsSeries: SeriesPoint[];
+  errorDetails?: {
+    error: string;
+    httpStatus?: number;
+    errorCode?: string;
+    timestamp?: string;
+  };
 }
 
 export function RegionStatusSection({
@@ -39,6 +45,7 @@ export function RegionStatusSection({
   redisUp,
   range,
   activeConnectionsSeries,
+  errorDetails,
 }: RegionStatusSectionProps) {
   return (
     <div className="flex flex-col gap-4 md:flex-row">
@@ -52,6 +59,7 @@ export function RegionStatusSection({
         serverStatus={serverStatus}
         sessionCount={Number(formatCompactNumber(sessionCount)) as any}
         version={version as string}
+        errorDetails={errorDetails}
         footer={
           mode === "history" ? (
             <div className="rounded-md border border-amber-300/60 bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800/60 px-3 py-2 text-xs md:text-sm font-medium shadow-sm inline-flex items-center gap-2">

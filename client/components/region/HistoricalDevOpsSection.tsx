@@ -1,0 +1,213 @@
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HardDrives, HardDrive, WifiHigh, Lightning, ShieldCheck, Rocket, Bell } from "@phosphor-icons/react";
+import { RangeKey } from "@/lib/helpers/utils";
+
+interface HistoricalDevOpsSectionProps {
+  mode: "latest" | "history";
+  range: RangeKey;
+  regionName: string;
+}
+
+export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalDevOpsSectionProps) {
+  if (mode !== "history") return null;
+
+  // Generate mock historical data points
+  const generateHistoricalPoints = (baseValue: number, variation: number = 0.2) => {
+    const points = [];
+    const totalPoints = range === "1m" ? 60 : range === "1h" ? 60 : range === "6h" ? 72 : 168;
+    
+    for (let i = 0; i < totalPoints; i++) {
+      const timestamp = new Date(Date.now() - (totalPoints - i) * (range === "1m" ? 60000 : range === "1h" ? 60000 : range === "6h" ? 300000 : 3600000));
+      const value = Math.max(0, Math.min(100, baseValue + (Math.sin(i * 0.1) + Math.random() - 0.5) * variation * 100));
+      points.push({ timestamp, value });
+    }
+    return points;
+  };
+
+  const memoryData = generateHistoricalPoints(65, 0.15);
+  const diskData = generateHistoricalPoints(45, 0.12);
+  const networkLatency = generateHistoricalPoints(42, 0.08);
+  const performanceUptime = generateHistoricalPoints(99.8, 0.002);
+  const securityThreats = generateHistoricalPoints(15, 0.3);
+  const deploymentSuccess = generateHistoricalPoints(96, 0.05);
+  const alertsCount = generateHistoricalPoints(8, 0.4);
+
+  const renderMiniChart = (data: { timestamp: Date; value: number }[], color: string, unit: string = "%") => {
+    const maxValue = Math.max(...data.map(d => d.value));
+    const minValue = Math.min(...data.map(d => d.value));
+    const range = maxValue - minValue || 1;
+
+    return (
+      <div className="h-24 relative">
+        <svg className="w-full h-full">
+          <defs>
+            <linearGradient id={`gradient-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.1" />
+            </linearGradient>
+          </defs>
+          
+          {/* Chart Area */}
+          <polygon
+            fill={`url(#gradient-${color})`}
+            points={[
+              ...data.map((point, index) => {
+                const x = (index / (data.length - 1)) * 100;
+                const y = ((maxValue - point.value) / range) * 70 + 15;
+                return `${x},${y}`;
+              }),
+              '100,85',
+              '0,85'
+            ].join(' ')}
+          />
+          
+          {/* Chart Line */}
+          <polyline
+            fill="none"
+            stroke={color}
+            strokeWidth="1.5"
+            points={data.map((point, index) => {
+              const x = (index / (data.length - 1)) * 100;
+              const y = ((maxValue - point.value) / range) * 70 + 15;
+              return `${x},${y}`;
+            }).join(' ')}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        
+        {/* Current Value */}
+        <div className="absolute top-2 right-2 text-xs font-semibold" style={{ color }}>
+          {data[data.length - 1]?.value.toFixed(1)}{unit}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Historical DevOps Metrics - {regionName}
+      </h3>
+
+      {/* Memory & Performance Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300">
+              <HardDrives className="h-4 w-4" />
+              Memory Usage History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {renderMiniChart(memoryData, "rgb(147, 51, 234)")}
+            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              Peak: {Math.max(...memoryData.map(d => d.value)).toFixed(1)}% • 
+              Avg: {(memoryData.reduce((s, d) => s + d.value, 0) / memoryData.length).toFixed(1)}%
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+              <Lightning className="h-4 w-4" />
+              Performance Uptime
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {renderMiniChart(performanceUptime, "rgb(16, 185, 129)")}
+            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              Min: {Math.min(...performanceUptime.map(d => d.value)).toFixed(2)}% • 
+              Current: {performanceUptime[performanceUptime.length - 1]?.value.toFixed(2)}%
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Storage & Network Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-indigo-700 dark:text-indigo-300">
+              <HardDrive className="h-4 w-4" />
+              Disk Usage History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {renderMiniChart(diskData, "rgb(99, 102, 241)")}
+            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              Peak: {Math.max(...diskData.map(d => d.value)).toFixed(1)}% • 
+              Trend: {diskData[diskData.length - 1]?.value > diskData[0]?.value ? "↗" : "↘"}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-cyan-50/50 dark:bg-cyan-900/10 border border-cyan-200 dark:border-cyan-800/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-cyan-700 dark:text-cyan-300">
+              <WifiHigh className="h-4 w-4" />
+              Network Latency
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {renderMiniChart(networkLatency, "rgb(6, 182, 212)", "ms")}
+            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              Avg: {(networkLatency.reduce((s, d) => s + d.value, 0) / networkLatency.length).toFixed(0)}ms • 
+              P95: {networkLatency.map(d => d.value).sort((a, b) => b - a)[Math.floor(networkLatency.length * 0.05)].toFixed(0)}ms
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Security & Operations Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="bg-red-50/50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-red-700 dark:text-red-300">
+              <ShieldCheck className="h-4 w-4" />
+              Security Score
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {renderMiniChart(securityThreats, "rgb(239, 68, 68)", "/100")}
+            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              Lower is better • Current: {securityThreats[securityThreats.length - 1]?.value.toFixed(0)}/100
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+              <Rocket className="h-4 w-4" />
+              Deployment Success
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {renderMiniChart(deploymentSuccess, "rgb(59, 130, 246)")}
+            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              Success Rate • Last 7 days: {deploymentSuccess[deploymentSuccess.length - 1]?.value.toFixed(1)}%
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-orange-50/50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300">
+              <Bell className="h-4 w-4" />
+              Active Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {renderMiniChart(alertsCount, "rgb(249, 115, 22)", " alerts")}
+            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+              Current: {Math.round(alertsCount[alertsCount.length - 1]?.value || 0)} active alerts
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

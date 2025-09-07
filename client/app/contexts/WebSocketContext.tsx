@@ -67,8 +67,7 @@ export interface WebSocketState {
 const WebSocketContext = createContext<WebSocketState | null>(null);
 
 // Resolve backend origin once. Falls back to localhost during dev.
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // Define the WebSocketProvider component
 export function WebSocketProvider({ children }: { children: ReactNode }) {
@@ -102,6 +101,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   // and a history channel for time window queries.
   useEffect(() => {
     // Initialize Socket.IO connection
+    console.log("WS init", { backendUrl: BACKEND_URL });
     const newSocket = io(BACKEND_URL, {
       transports: ["websocket", "polling"], // Prefer WebSocket; Socket.IO will fall back to polling if WS is unavailable
       reconnection: true,
@@ -112,7 +112,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Connection event handlers
     newSocket.on("connect", () => {
-      console.log("Connected to DevOps Insights backend");
+      console.log("Connected to DevOps Insights backend", {
+        id: newSocket.id,
+        transport: (newSocket as any).io?.engine?.transport?.name,
+      });
       setIsConnected(true);
       setError(null);
     });
@@ -125,7 +128,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Connection error event handler
     newSocket.on("connect_error", (err) => {
-      console.error("Connection error:", err);
+      console.error("Connection error:", {
+        message: err?.message,
+        name: err?.name,
+        description: (err as any)?.description,
+      });
       setError(`Connection failed: ${err.message}`);
       setIsConnected(false);
     });
@@ -200,6 +207,73 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         // Update the last update time
         setLastUpdate(new Date());
       }
+    });
+
+    // Handle metrics error events (when regions fail)
+    newSocket.on("metrics-error", (data: {
+      api: string;
+      source: string;
+      error: string;
+      httpStatus?: number;
+      errorCode?: string;
+      timestamp: string;
+    }) => {
+      // In history mode, suppress logs and updates entirely
+      if (!liveEnabledRef.current) return;
+      console.log("Received metrics error:", data);
+
+      // Get previous data for this source to preserve stats
+      const previousData = metrics[data.source] || {} as any;
+      
+      // Create an error state object that preserves previous stats
+      const errorState = {
+        status: "error",
+        error: data.error,
+        httpStatus: data.httpStatus,
+        errorCode: data.errorCode,
+        timestamp: data.timestamp,
+        region: data.source,
+        // Preserve previous metadata when available
+        server_issue: data.error,
+        strict: previousData.strict || false,
+        version: previousData.version || "unknown",
+        roles: previousData.roles || [],
+        results: {
+          stats: {
+            // Preserve previous stats or use defaults
+            online: previousData?.results?.stats?.online || 0,
+            servers_count: previousData?.results?.stats?.servers_count || 0,
+            session: previousData?.results?.stats?.session || 0,
+            server: {
+              cpus: previousData?.results?.stats?.server?.cpus || 0,
+              active_connections: previousData?.results?.stats?.server?.active_connections || 0,
+              wait_time: previousData?.results?.stats?.server?.wait_time || 0,
+              workers: previousData?.results?.stats?.server?.workers || [],
+              cpu_load: previousData?.results?.stats?.server?.cpu_load || 0,
+              timers: previousData?.results?.stats?.server?.timers || 0
+            }
+          },
+          services: {
+            // Services are likely affected by the error, so mark as down
+            database: false,
+            redis: false
+          }
+        }
+      };
+
+      // Update the metrics with error state
+      setMetrics((prev) => ({
+        ...prev,
+        [data.source]: errorState,
+      }));
+      
+      // Update timestamps
+      setLatestTimestamps((prev) => ({ 
+        ...prev, 
+        [data.source]: data.timestamp 
+      }));
+      
+      setLastUpdate(new Date());
     });
 
     // Historical data events
