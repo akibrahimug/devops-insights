@@ -17,10 +17,10 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
   // Generate mock historical data points
   const generateHistoricalPoints = (baseValue: number, variation: number = 0.2) => {
     const points = [];
-    const totalPoints = range === "1m" ? 60 : range === "1h" ? 60 : range === "6h" ? 72 : 168;
+    const totalPoints = range === "1m" ? 60 : range === "5m" ? 60 : range === "1h" ? 60 : range === "5h" ? 72 : 168;
     
     for (let i = 0; i < totalPoints; i++) {
-      const timestamp = new Date(Date.now() - (totalPoints - i) * (range === "1m" ? 60000 : range === "1h" ? 60000 : range === "6h" ? 300000 : 3600000));
+      const timestamp = new Date(Date.now() - (totalPoints - i) * (range === "1m" ? 60000 : range === "5m" ? 5 * 60000 : range === "1h" ? 60000 : range === "5h" ? 300000 : 3600000));
       const value = Math.max(0, Math.min(100, baseValue + (Math.sin(i * 0.1) + Math.random() - 0.5) * variation * 100));
       points.push({ timestamp, value });
     }

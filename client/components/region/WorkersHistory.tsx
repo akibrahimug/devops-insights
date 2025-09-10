@@ -243,7 +243,6 @@ export function WorkersHistory({
                 <MetricChart
                   type="doughnut"
                   height={200}
-                  width={200}
                   data={{
                     labels: metricKeys.map((mk) => mk.replace(/_/g, " ")),
                     datasets: [
@@ -273,12 +272,12 @@ export function WorkersHistory({
                         cornerRadius: 6,
                         displayColors: true,
                         callbacks: {
-                          title: function(context) {
+                          title: function(context: any) {
                             return context[0].label;
                           },
-                          label: function(context) {
+                          label: function(context: any) {
                             const value = context.parsed;
-                            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                            const total = context.dataset.data.reduce((a: number, b: any) => a + (typeof b === 'number' ? b : 0), 0);
                             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
                             return `${context.label}: ${value} (${percentage}%)`;
                           },
@@ -304,9 +303,9 @@ export function WorkersHistory({
                     },
                     interaction: {
                       intersect: false,
-                      mode: 'nearest',
+                      mode: 'nearest' as const,
                     },
-                  }}
+                  } as any}
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">

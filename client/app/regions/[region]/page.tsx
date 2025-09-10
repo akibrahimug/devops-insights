@@ -291,7 +291,7 @@ export default function RegionDetailPage() {
           redisUp={region.data.services.redis}
           range={range}
           activeConnectionsSeries={activeConnectionsSeries}
-          errorDetails={errorDetails}
+          errorDetails={errorDetails || undefined}
         />
 
         <InfrastructureSection
