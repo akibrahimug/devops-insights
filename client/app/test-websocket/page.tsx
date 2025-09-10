@@ -19,8 +19,8 @@ export default function TestWebSocket() {
       isConnected,
       error,
       socketExists: !!socket,
-      backendUrl:
-        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000",
+      backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
+      transport: (socket as any)?.io?.engine?.transport?.name,
     });
   }, [isConnected, error, socket]);
 
@@ -44,7 +44,14 @@ export default function TestWebSocket() {
           <div>
             <strong>Backend URL:</strong>{" "}
             <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-              {process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}
+              {process.env.NEXT_PUBLIC_BACKEND_URL}
+            </code>
+          </div>
+
+          <div>
+            <strong>Socket Transport:</strong>{" "}
+            <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+              {(socket as any)?.io?.engine?.transport?.name || "n/a"}
             </code>
           </div>
 

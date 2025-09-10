@@ -32,12 +32,51 @@ type MetricKey =
   | "waiting"
   | "workers";
 
-const metricColors: Record<MetricKey, string> = {
-  idle: "rgb(16, 185, 129)", // green
-  time_to_return: "rgb(168, 85, 247)", // purple
-  wait_time: "rgb(59, 130, 246)", // blue
-  waiting: "rgb(245, 158, 11)", // amber
-  workers: "rgb(34, 197, 94)", // emerald
+const getWorkerColors = (workerIndex: number): Record<MetricKey, string> => {
+  const colorPalettes = [
+    // Palette 1 - Green/Blue theme
+    {
+      idle: "#10b981",
+      time_to_return: "#06b6d4",
+      wait_time: "#3b82f6",
+      waiting: "#8b5cf6",
+      workers: "#22c55e",
+    },
+    // Palette 2 - Purple/Pink theme
+    {
+      idle: "#a855f7",
+      time_to_return: "#ec4899",
+      wait_time: "#f97316",
+      waiting: "#eab308",
+      workers: "#84cc16",
+    },
+    // Palette 3 - Orange/Red theme
+    {
+      idle: "#f97316",
+      time_to_return: "#ef4444",
+      wait_time: "#dc2626",
+      waiting: "#991b1b",
+      workers: "#f59e0b",
+    },
+    // Palette 4 - Teal/Indigo theme
+    {
+      idle: "#0d9488",
+      time_to_return: "#6366f1",
+      wait_time: "#4f46e5",
+      waiting: "#7c3aed",
+      workers: "#059669",
+    },
+    // Palette 5 - Rose/Emerald theme
+    {
+      idle: "#f43f5e",
+      time_to_return: "#e11d48",
+      wait_time: "#be123c",
+      waiting: "#9f1239",
+      workers: "#10b981",
+    },
+  ];
+  
+  return colorPalettes[workerIndex % colorPalettes.length];
 };
 
 export function WorkersHistory({
@@ -56,25 +95,41 @@ export function WorkersHistory({
   const buckets: number[] = [];
   for (let b = startBucket; b <= endBucket; b += bucketMs) buckets.push(b);
 
-  // Collect the union of worker names from props and history.
-  const workerNamesFromProp = workers.map(([name]) => String(name));
-  const workerNamesFromHistory = Array.from(
-    new Set(
-      history.flatMap((h) => {
-        const w = (h.data as any)?.results?.stats?.server?.workers;
-        if (!w) return [] as string[];
-        if (Array.isArray(w)) {
-          return (w as any[])
-            .map((entry: any) => String(entry?.[0] ?? ""))
-            .filter(Boolean);
-        }
-        return Object.keys(w as Record<string, any>);
-      })
-    )
-  );
-  const workerNames = Array.from(
-    new Set([...workerNamesFromProp, ...workerNamesFromHistory])
-  ).sort();
+  // Only use worker names that have actual meaningful data
+  const workersWithData = new Set<string>();
+  
+  history.forEach((h) => {
+    const w = (h.data as any)?.results?.stats?.server?.workers;
+    if (!w) return;
+    
+    let entries: WorkerEntry[] = [];
+    if (Array.isArray(w)) {
+      entries = (w as any[])
+        .map((entry: any) =>
+          Array.isArray(entry)
+            ? ([String(entry[0]), entry[1]] as WorkerEntry)
+            : ([String(entry?.name ?? ""), entry] as WorkerEntry)
+        )
+        .filter(([name]) => !!name);
+    } else if (typeof w === "object") {
+      entries = Object.entries(w as Record<string, any>);
+    }
+    
+    entries.forEach(([name, data]) => {
+      // Only include workers that have non-zero metrics
+      const idle = Number((data as any)?.idle ?? 0);
+      const ttr = Number((data as any)?.time_to_return ?? 0);
+      const wait = Number((data as any)?.wait_time ?? 0);
+      const waiting = Number((data as any)?.waiting ?? 0);
+      const count = Number((data as any)?.workers ?? 0);
+      
+      if (idle > 0 || ttr > 0 || wait > 0 || waiting > 0 || count > 0) {
+        workersWithData.add(String(name));
+      }
+    });
+  });
+  
+  const workerNames = Array.from(workersWithData).sort();
 
   // Prepare data structure: worker -> metric -> bucket -> sum
   const workerMetricBucket = new Map<
@@ -148,6 +203,8 @@ export function WorkersHistory({
       "workers",
     ];
 
+    const workerColors = getWorkerColors(index);
+
     // Determine if this worker has any data across any metric to avoid empty charts.
     const metricMap = workerMetricBucket.get(worker);
     const hasAnyData =
@@ -164,7 +221,7 @@ export function WorkersHistory({
     return (
       <Card
         key={worker}
-        className="border rounded-lg transition-shadow hover:shadow-md dark:bg-gray-800/50 backdrop-blur"
+        className="border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm bg-white dark:bg-gray-800"
       >
         <CardHeader className="py-2">
           <CardTitle className="text-sm text-gray-900 dark:text-white flex items-center gap-2">
@@ -181,87 +238,89 @@ export function WorkersHistory({
               No history for this worker in the selected range
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-              {metricKeys.map((mk) => {
-                const bucketMap =
-                  metricMap?.get(mk) || new Map<number, number>();
-                const labels = buckets.map((b) =>
-                  formatTimeLabelForRange(new Date(b).toISOString(), range)
-                );
-                const values = buckets.map((b) => {
-                  const v = bucketMap.get(b);
-                  // Avoid rendering fake flat lines for entirely missing data
-                  return typeof v === "number" ? v : NaN;
-                });
-                const title = mk.replace(/_/g, " ");
-                const hasSeries = values.some(
-                  (v) => Number.isFinite(v) && v !== 0
-                );
-                if (!hasSeries) {
-                  return (
-                    <div
-                      key={mk}
-                      className="px-2 py-2 border border-gray-200 dark:border-gray-700 rounded-md shadow hover:shadow-lg transition-shadow hover:bg-gray-50 dark:hover:bg-gray-900/30"
-                    >
-                      <div className="flex items-center justify-center h-[120px] text-[11px] text-gray-500 dark:text-gray-400">
-                        No data
-                      </div>
-                      <div className="mt-1 text-xs font-semibold text-gray-700 dark:text-gray-300 text-center capitalize">
-                        {title}
-                      </div>
-                    </div>
-                  );
-                }
-                const color = metricColors[mk];
-                const lightColor = color
-                  .replace("rgb", "rgba")
-                  .replace(")", ", 0.6)");
-                return (
-                  <div
-                    key={mk}
-                    className="px-2 py-2 border border-gray-200 dark:border-gray-700 rounded-md shadow hover:shadow-lg transition-shadow hover:bg-gray-50 dark:hover:bg-gray-900/30"
-                  >
-                    <MetricChart
-                      type="bar"
-                      height={130}
-                      data={{
-                        labels,
-                        datasets: [
-                          {
-                            label: title,
-                            data: values,
-                            backgroundColor: lightColor,
-                            borderColor: color,
-                            borderWidth: 1,
-                            borderRadius: 3,
+            <div className="flex justify-center">
+              <div className="relative">
+                <MetricChart
+                  type="doughnut"
+                  height={200}
+                  width={200}
+                  data={{
+                    labels: metricKeys.map((mk) => mk.replace(/_/g, " ")),
+                    datasets: [
+                      {
+                        data: metricKeys.map((mk) => {
+                          const bucketMap = metricMap?.get(mk) || new Map<number, number>();
+                          const totalValue = Array.from(bucketMap.values()).reduce((sum, v) => sum + v, 0);
+                          return totalValue || 0;
+                        }),
+                        backgroundColor: metricKeys.map((mk) => workerColors[mk] + "80"),
+                        borderWidth: 0,
+                      },
+                    ],
+                  }}
+                  options={{
+                    plugins: {
+                      legend: {
+                        display: false,
+                      },
+                      tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: 'white',
+                        bodyColor: 'white',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 6,
+                        displayColors: true,
+                        callbacks: {
+                          title: function(context) {
+                            return context[0].label;
                           },
-                        ],
-                      }}
-                      options={{
-                        plugins: {
-                          legend: { display: false },
-                        },
-                        interaction: { mode: "nearest", intersect: true },
-                        scales: {
-                          x: {
-                            grid: { display: false },
-                            border: { display: false },
-                            ticks: { display: false },
-                          },
-                          y: {
-                            grid: { display: false },
-                            border: { display: false },
-                            ticks: { display: false },
+                          label: function(context) {
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return `${context.label}: ${value} (${percentage}%)`;
                           },
                         },
-                      }}
-                    />
-                    <div className="mt-1 text-xs font-semibold text-gray-700 dark:text-gray-300 text-center capitalize">
-                      {title}
+                      },
+                    },
+                    maintainAspectRatio: false,
+                    cutout: "60%",
+                    elements: {
+                      arc: {
+                        borderWidth: 0,
+                        hoverBorderWidth: 2,
+                        hoverBorderColor: 'white',
+                      },
+                    },
+                    scales: {
+                      x: {
+                        display: false,
+                      },
+                      y: {
+                        display: false,
+                      },
+                    },
+                    interaction: {
+                      intersect: false,
+                      mode: 'nearest',
+                    },
+                  }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-gray-800 dark:text-gray-200">
+                      {metricKeys.reduce((sum, mk) => {
+                        const bucketMap = metricMap?.get(mk) || new Map<number, number>();
+                        const totalValue = Array.from(bucketMap.values()).reduce((s, v) => s + v, 0);
+                        return sum + totalValue;
+                      }, 0).toFixed(0)}
                     </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
                   </div>
-                );
-              })}
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
@@ -277,7 +336,7 @@ export function WorkersHistory({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {workerNames.map((w, i) => renderWorker(w, i))}
         </div>
       </CardContent>
