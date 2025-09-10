@@ -19,6 +19,7 @@ import Logger from 'bunyan';
 import { config } from '@root/config';
 import apiRegions from '@root/static/api-regions.json';
 import { RedisLeaderLock } from '@services/redis/leader.lock';
+import { generateFakeMetrics } from './fake-data-generator';
 
 const log: Logger = config.createLogger('api-poller');
 
@@ -107,8 +108,9 @@ export class ApiPollerService {
 
   private async pollOnce(api: ExternalApi) {
     try {
-      const res = await axios.get(api.url, { timeout: 5_000 });
-      const json = JSON.stringify(res.data);
+      // Generate fake data instead of making HTTP request
+      const fakeData = generateFakeMetrics(api.source);
+      const json = JSON.stringify(fakeData);
       // hash the data
       const hash = crypto.createHash('sha1').update(json).digest('hex');
 
@@ -120,23 +122,27 @@ export class ApiPollerService {
         .select('hash')
         .lean();
       // if the data has not changed, return
-      if (existing?.hash === hash) return; // no change
+      if (existing?.hash === hash) {
+        log.debug(`${api.name}/${api.source} hash unchanged (${hash.substring(0, 8)}...)`);
+        return; // no change
+      }
 
       // upsert latest & append history
-      await MetricLatest.updateOne(
+      const latestResult = await MetricLatest.updateOne(
         { api: api.name, source: api.source },
-        { $set: { data: res.data, hash } },
+        { $set: { data: fakeData, hash } },
         { upsert: true },
       );
       // append history
       await MetricHistory.create({
         api: api.name,
         source: api.source,
-        data: res.data,
+        data: fakeData,
         hash,
       });
+      
       // log the change to the database
-      log.info(`${api.name}/${api.source} changed (db updated)`);
+      log.info(`${api.name}/${api.source} changed (db updated) - hash: ${hash.substring(0, 8)}...`);
 
       /* ---------- optional direct emit ---------- */
       // emit the change to the websocket
@@ -144,7 +150,7 @@ export class ApiPollerService {
         this.io.to(`metrics:${api.name}:${api.source}`).emit('metrics-update', {
           api: api.name,
           source: api.source,
-          data: res.data,
+          data: fakeData,
           timestamp: new Date().toISOString(),
         });
       }

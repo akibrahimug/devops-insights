@@ -218,9 +218,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       errorCode?: string;
       timestamp: string;
     }) => {
-      // In history mode, suppress logs and updates entirely
-      if (!liveEnabledRef.current) return;
-      console.log("Received metrics error:", data);
+      // Always process error events, but only log in live mode
+      if (liveEnabledRef.current) {
+        console.log("Received metrics error:", data);
+      }
 
       // Get previous data for this source to preserve stats
       const previousData = metrics[data.source] || {} as any;

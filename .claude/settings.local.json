@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:data--us-east.devops-data-faker.io)",
+      "WebFetch(domain:devops-data-faker.io)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

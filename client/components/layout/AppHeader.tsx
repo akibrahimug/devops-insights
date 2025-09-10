@@ -29,7 +29,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({
-  title = "Global DevOps Dashboard",
+  title = "DevOps Dashboard",
   connected,
   autoRefreshEnabled = false,
   onToggleRefresh,

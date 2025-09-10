@@ -14,16 +14,16 @@ import { WifiHigh, Lightning, Warning, Globe, Eye } from "@phosphor-icons/react"
 import { DetailedMetricsModal } from "@/components/modals/DetailedMetricsModal";
 
 interface NetworkData {
-  bandwidth_in: number; // Mbps
-  bandwidth_out: number; // Mbps
-  latency: number; // ms
-  packet_loss: number; // %
+  bandwidth_in?: number; // Mbps
+  bandwidth_out?: number; // Mbps
+  latency?: number; // ms
+  packet_loss?: number; // %
 }
 
 interface RegionNetworkData {
   name: string;
   displayName: string;
-  network: NetworkData;
+  network?: NetworkData;
   status: string;
 }
 
@@ -34,13 +34,13 @@ interface NetworkPerformanceCardProps {
 
 export function NetworkPerformanceCard({ regions, className = "" }: NetworkPerformanceCardProps) {
   const [showModal, setShowModal] = useState(false);
-  const totalBandwidthIn = regions.reduce((sum, region) => sum + region.network.bandwidth_in, 0);
-  const totalBandwidthOut = regions.reduce((sum, region) => sum + region.network.bandwidth_out, 0);
+  const totalBandwidthIn = regions.reduce((sum, region) => sum + (region.network?.bandwidth_in || 0), 0);
+  const totalBandwidthOut = regions.reduce((sum, region) => sum + (region.network?.bandwidth_out || 0), 0);
   const averageLatency = regions.length > 0 
-    ? regions.reduce((sum, region) => sum + region.network.latency, 0) / regions.length 
+    ? regions.reduce((sum, region) => sum + (region.network?.latency || 0), 0) / regions.length 
     : 0;
   const averagePacketLoss = regions.length > 0 
-    ? regions.reduce((sum, region) => sum + region.network.packet_loss, 0) / regions.length 
+    ? regions.reduce((sum, region) => sum + (region.network?.packet_loss || 0), 0) / regions.length 
     : 0;
 
   const getLatencyColor = (latency: number) => {
@@ -137,12 +137,12 @@ export function NetworkPerformanceCard({ regions, className = "" }: NetworkPerfo
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className={`text-xs font-semibold ${getLatencyColor(region.network.latency)}`}>
-                    {region.network.latency.toFixed(0)}ms
+                  <div className={`text-xs font-semibold ${getLatencyColor(region.network?.latency || 0)}`}>
+                    {(region.network?.latency || 0).toFixed(0)}ms
                   </div>
-                  {region.network.packet_loss > 0.5 && (
-                    <div className={`text-xs font-semibold ${getPacketLossColor(region.network.packet_loss)}`}>
-                      {formatPercentage(region.network.packet_loss)}
+                  {(region.network?.packet_loss || 0) > 0.5 && (
+                    <div className={`text-xs font-semibold ${getPacketLossColor(region.network?.packet_loss || 0)}`}>
+                      {formatPercentage(region.network?.packet_loss || 0)}
                     </div>
                   )}
                 </div>
@@ -156,12 +156,12 @@ export function NetworkPerformanceCard({ regions, className = "" }: NetworkPerfo
           </div>
 
           {/* Network Alerts */}
-          {(regions.some(r => r.network.latency >= 200) || regions.some(r => r.network.packet_loss >= 1)) && (
+          {(regions.some(r => (r.network?.latency || 0) >= 200) || regions.some(r => (r.network?.packet_loss || 0) >= 1)) && (
             <div className="mt-4 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/60 rounded-lg">
               <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
                 <Warning className="h-3 w-3" />
                 <span className="text-xs font-medium">
-                  Network issues detected in {regions.filter(r => r.network.latency >= 200 || r.network.packet_loss >= 1).length} region(s)
+                  Network issues detected in {regions.filter(r => (r.network?.latency || 0) >= 200 || (r.network?.packet_loss || 0) >= 1).length} region(s)
                 </span>
               </div>
             </div>

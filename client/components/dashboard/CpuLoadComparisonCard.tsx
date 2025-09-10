@@ -111,7 +111,7 @@ export function CpuLoadComparisonCard({ regions }: { regions: RegionLike[] }) {
             labels: [""],
             datasets: [
               {
-                label: "Global Avg",
+                label: "Average",
                 data: [avgAll],
                 backgroundColor: (c: any) => gradientColor(c, 0.3),
                 borderColor: (c: any) => gradientColor(c, 0.45),

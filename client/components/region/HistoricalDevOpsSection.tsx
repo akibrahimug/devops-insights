@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HardDrives, HardDrive, WifiHigh, Lightning, ShieldCheck, Rocket, Bell } from "@phosphor-icons/react";
 import { RangeKey } from "@/lib/helpers/utils";
+import { MetricChart } from "@/components/charts/MetricChart";
 
 interface HistoricalDevOpsSectionProps {
   mode: "latest" | "history";
@@ -34,51 +35,72 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
   const deploymentSuccess = generateHistoricalPoints(96, 0.05);
   const alertsCount = generateHistoricalPoints(8, 0.4);
 
-  const renderMiniChart = (data: { timestamp: Date; value: number }[], color: string, unit: string = "%") => {
-    const maxValue = Math.max(...data.map(d => d.value));
-    const minValue = Math.min(...data.map(d => d.value));
-    const range = maxValue - minValue || 1;
-
+  const renderMiniChart = (data: { timestamp: Date; value: number }[], color: string, unit: string = "%", title: string = "") => {
     return (
-      <div className="h-24 relative">
-        <svg className="w-full h-full">
-          <defs>
-            <linearGradient id={`gradient-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-              <stop offset="100%" stopColor={color} stopOpacity="0.1" />
-            </linearGradient>
-          </defs>
-          
-          {/* Chart Area */}
-          <polygon
-            fill={`url(#gradient-${color})`}
-            points={[
-              ...data.map((point, index) => {
-                const x = (index / (data.length - 1)) * 100;
-                const y = ((maxValue - point.value) / range) * 70 + 15;
-                return `${x},${y}`;
-              }),
-              '100,85',
-              '0,85'
-            ].join(' ')}
-          />
-          
-          {/* Chart Line */}
-          <polyline
-            fill="none"
-            stroke={color}
-            strokeWidth="1.5"
-            points={data.map((point, index) => {
-              const x = (index / (data.length - 1)) * 100;
-              const y = ((maxValue - point.value) / range) * 70 + 15;
-              return `${x},${y}`;
-            }).join(' ')}
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+      <div className="h-40 relative">
+        <MetricChart
+          type="line"
+          height={160}
+          data={{
+            labels: data.map(d => d.timestamp.toLocaleTimeString()),
+            datasets: [
+              {
+                label: title,
+                data: data.map(d => d.value),
+                borderColor: color,
+                backgroundColor: color + "20",
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointBackgroundColor: color,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+              },
+            ],
+          }}
+          options={{
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                enabled: true,
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: 'white',
+                bodyColor: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1,
+                cornerRadius: 6,
+                displayColors: false,
+                callbacks: {
+                  title: function(context: any) {
+                    return title;
+                  },
+                  label: function(context: any) {
+                    return `${context.parsed.y.toFixed(1)}${unit}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                display: false,
+              },
+              y: {
+                display: false,
+              },
+            },
+            interaction: {
+              intersect: false,
+              mode: 'index' as const,
+            },
+          }}
+        />
         
         {/* Current Value */}
-        <div className="absolute top-2 right-2 text-xs font-semibold" style={{ color }}>
+        <div className="absolute top-3 right-3 text-sm font-bold bg-white/90 dark:bg-gray-800/90 px-2 py-1 rounded-md shadow-sm" style={{ color }}>
           {data[data.length - 1]?.value.toFixed(1)}{unit}
         </div>
       </div>
@@ -101,7 +123,7 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderMiniChart(memoryData, "rgb(147, 51, 234)")}
+            {renderMiniChart(memoryData, "#8b5cf6", "%", "Memory Usage")}
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
               Peak: {Math.max(...memoryData.map(d => d.value)).toFixed(1)}% • 
               Avg: {(memoryData.reduce((s, d) => s + d.value, 0) / memoryData.length).toFixed(1)}%
@@ -117,7 +139,7 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderMiniChart(performanceUptime, "rgb(16, 185, 129)")}
+            {renderMiniChart(performanceUptime, "#10b981", "%", "Performance Uptime")}
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
               Min: {Math.min(...performanceUptime.map(d => d.value)).toFixed(2)}% • 
               Current: {performanceUptime[performanceUptime.length - 1]?.value.toFixed(2)}%
@@ -136,7 +158,7 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderMiniChart(diskData, "rgb(99, 102, 241)")}
+            {renderMiniChart(diskData, "#6366f1", "%", "Disk Usage")}
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
               Peak: {Math.max(...diskData.map(d => d.value)).toFixed(1)}% • 
               Trend: {diskData[diskData.length - 1]?.value > diskData[0]?.value ? "↗" : "↘"}
@@ -152,7 +174,7 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderMiniChart(networkLatency, "rgb(6, 182, 212)", "ms")}
+            {renderMiniChart(networkLatency, "#06b6d4", "ms", "Network Latency")}
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
               Avg: {(networkLatency.reduce((s, d) => s + d.value, 0) / networkLatency.length).toFixed(0)}ms • 
               P95: {networkLatency.map(d => d.value).sort((a, b) => b - a)[Math.floor(networkLatency.length * 0.05)].toFixed(0)}ms
@@ -171,7 +193,7 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderMiniChart(securityThreats, "rgb(239, 68, 68)", "/100")}
+            {renderMiniChart(securityThreats, "#ef4444", "/100", "Security Score")}
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
               Lower is better • Current: {securityThreats[securityThreats.length - 1]?.value.toFixed(0)}/100
             </div>
@@ -186,7 +208,7 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderMiniChart(deploymentSuccess, "rgb(59, 130, 246)")}
+            {renderMiniChart(deploymentSuccess, "#3b82f6", "%", "Deployment Success")}
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
               Success Rate • Last 7 days: {deploymentSuccess[deploymentSuccess.length - 1]?.value.toFixed(1)}%
             </div>
@@ -201,7 +223,7 @@ export function HistoricalDevOpsSection({ mode, range, regionName }: HistoricalD
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderMiniChart(alertsCount, "rgb(249, 115, 22)", " alerts")}
+            {renderMiniChart(alertsCount, "#f97316", " alerts", "Active Alerts")}
             <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
               Current: {Math.round(alertsCount[alertsCount.length - 1]?.value || 0)} active alerts
             </div>

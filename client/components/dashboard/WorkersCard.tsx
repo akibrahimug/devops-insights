@@ -23,10 +23,10 @@ import {
 } from "@/components/ui/accordion";
 import { Eye, EyeSlash, Key, CopySimple, GearSix } from "@phosphor-icons/react";
 import { capitalizeWords, removeHyphens } from "@/lib/helpers/utils";
-import { useState } from "react";
+import React, { useState } from "react";
 
 interface WorkersCardProps {
-  workers: Array<[string, any]>;
+  workers: Array<[string, any]> | Record<string, any> | any;
   isHistoryMode?: boolean;
 }
 
@@ -38,6 +38,33 @@ export function WorkersCard({
     Record<string, boolean>
   >({});
   const [showTopKeys, setShowTopKeys] = useState<Record<string, boolean>>({});
+
+  // Normalize workers data to Array<[string, any]> format
+  const normalizedWorkers: Array<[string, any]> = React.useMemo(() => {
+    if (!workers) return [];
+    
+    if (Array.isArray(workers)) {
+      return workers.map((worker, index) => {
+        if (Array.isArray(worker) && worker.length >= 2) {
+          return worker as [string, any];
+        }
+        // If worker is an object, try to extract name and data
+        if (typeof worker === 'object' && worker !== null) {
+          const name = worker.name || worker.type || `worker-${index}`;
+          return [name, worker];
+        }
+        // Fallback
+        return [`worker-${index}`, worker];
+      });
+    }
+    
+    // If workers is an object, convert to array of entries
+    if (typeof workers === 'object') {
+      return Object.entries(workers);
+    }
+    
+    return [];
+  }, [workers]);
 
   /**
    * I return a masked representation of a key unless reveal=true.
@@ -63,7 +90,12 @@ export function WorkersCard({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {workers.map(([name, data], index) => {
+          {normalizedWorkers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              No worker data available
+            </div>
+          ) : (
+            normalizedWorkers.map(([name, data], index) => {
             const displayName = capitalizeWords(removeHyphens(name));
             const color = `hsl(${(index * 47) % 360} 70% 50%)`;
             const totalWorkers = Number(data?.workers) || 0;
@@ -362,7 +394,8 @@ export function WorkersCard({
                 )}
               </div>
             );
-          })}
+            })
+          )}
         </div>
       </CardContent>
     </Card>
