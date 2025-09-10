@@ -224,7 +224,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       }
 
       // Get previous data for this source to preserve stats
-      const previousData = metrics[data.source] || {} as any;
+      const previousData = metrics[data.source] as any || {};
       
       // Create an error state object that preserves previous stats
       const errorState = {

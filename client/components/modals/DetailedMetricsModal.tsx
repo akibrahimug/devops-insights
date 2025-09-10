@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { X, TrendingUp, Clock, Activity, AlertCircle } from "@phosphor-icons/react";
+import { X, Clock } from "@phosphor-icons/react";
 import { useWebSocket } from "@/app/contexts/WebSocketContext";
 
 interface TimeFrame {
