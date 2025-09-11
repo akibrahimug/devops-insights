@@ -6,3 +6,7 @@ index.lock
 COMMIT_EDITMSG
 FETCH_HEAD
 ORIG_HEAD
+.vercel
+.claude
+.cursor
+.idea
