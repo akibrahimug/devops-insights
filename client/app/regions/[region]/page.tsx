@@ -337,24 +337,24 @@ export default function RegionDetailPage() {
               <MemoryUsageCard regions={[{
                 name: region.name,
                 displayName: region.displayName,
-                memory: (metrics as any)[region.name]?.results?.memory || {
+                memory: {
                   total: 32,
-                  used: Math.round(32 * (region.data.cpuLoad / 100) * 0.8),
-                  available: Math.round(32 * (1 - (region.data.cpuLoad / 100) * 0.8)),
-                  usage_percent: Math.round((region.data.cpuLoad / 100) * 80)
+                  used: Math.round(32 * ((55 + Math.random() * 30) / 100)),
+                  available: Math.round(32 * (1 - (55 + Math.random() * 30) / 100)),
+                  usage_percent: Math.round(55 + Math.random() * 30)
                 },
                 status: region.data.serverStatus
               }]} />
               <DiskUsageCard regions={[{
                 name: region.name,
                 displayName: region.displayName,
-                disk: (metrics as any)[region.name]?.results?.disk || {
+                disk: {
                   total: 500,
-                  used: Math.round(500 * (region.data.cpuLoad / 100) * 0.6),
-                  available: Math.round(500 * (1 - (region.data.cpuLoad / 100) * 0.6)),
-                  usage_percent: Math.round((region.data.cpuLoad / 100) * 60),
-                  io_read: Math.round(25 + region.data.cpuLoad * 0.5),
-                  io_write: Math.round(15 + region.data.cpuLoad * 0.3)
+                  used: Math.round(500 * ((40 + Math.random() * 40) / 100)),
+                  available: Math.round(500 * (1 - (40 + Math.random() * 40) / 100)),
+                  usage_percent: Math.round(40 + Math.random() * 40),
+                  io_read: Math.round(20 + Math.random() * 40),
+                  io_write: Math.round(10 + Math.random() * 30)
                 },
                 status: region.data.serverStatus
               }]} />
@@ -363,11 +363,11 @@ export default function RegionDetailPage() {
             <NetworkPerformanceCard regions={[{
               name: region.name,
               displayName: region.displayName,
-              network: (metrics as any)[region.name]?.results?.network || {
-                bandwidth_in: Math.round(750 + region.data.activeConnections * 2),
-                bandwidth_out: Math.round(500 + region.data.activeConnections * 1.5),
-                latency: Math.round(45 + region.data.waitTime * 0.1),
-                packet_loss: Math.max(0.01, region.data.cpuLoad > 80 ? 0.5 : 0.1)
+              network: {
+                bandwidth_in: Math.round(600 + Math.random() * 800),
+                bandwidth_out: Math.round(400 + Math.random() * 600),
+                latency: Math.round(35 + Math.random() * 40),
+                packet_loss: Math.max(0.01, Math.random() * 0.5)
               },
               status: region.data.serverStatus
             }]} />
@@ -376,26 +376,26 @@ export default function RegionDetailPage() {
               <PerformanceAnalyticsCard regions={[{
                 name: region.name,
                 displayName: region.displayName,
-                performance: (metrics as any)[region.name]?.results?.performance || {
-                  response_times: { 
-                    p50: Math.round(120 + region.data.waitTime * 2), 
-                    p95: Math.round(300 + region.data.waitTime * 5), 
-                    p99: Math.round(800 + region.data.waitTime * 10) 
+                performance: {
+                  response_times: {
+                    p50: Math.round(80 + Math.random() * 120),
+                    p95: Math.round(200 + Math.random() * 400),
+                    p99: Math.round(500 + Math.random() * 800)
                   },
-                  error_rate: Math.max(0.1, region.data.cpuLoad > 80 ? 2 : 0.5),
-                  requests_per_second: Math.round(850 + region.data.activeConnections * 5),
-                  uptime_percent: region.data.serverStatus === 'ok' ? 99.9 : 95.5
+                  error_rate: region.data.serverStatus === 'error' ? Math.random() * 5 + 3 : Math.random() * 2,
+                  requests_per_second: Math.round(500 + Math.random() * 1500),
+                  uptime_percent: region.data.serverStatus === 'error' ? 90 + Math.random() * 5 : 97 + Math.random() * 2.5
                 },
                 status: region.data.serverStatus
               }]} />
               <SecurityMonitoringCard regions={[{
                 name: region.name,
                 displayName: region.displayName,
-                security: (metrics as any)[region.name]?.results?.security || {
-                  failed_logins: Math.round(12 + (region.data.cpuLoad > 70 ? 20 : 0)),
-                  blocked_ips: Math.round(3 + (region.data.cpuLoad > 80 ? 5 : 0)),
-                  ssl_cert_days: 89,
-                  vulnerability_score: Math.round(15 + (region.data.cpuLoad > 80 ? 25 : 0))
+                security: {
+                  failed_logins: Math.round(5 + Math.random() * 30),
+                  blocked_ips: Math.round(1 + Math.random() * 10),
+                  ssl_cert_days: Math.round(60 + Math.random() * 120),
+                  vulnerability_score: Math.round(10 + Math.random() * 40)
                 },
                 status: region.data.serverStatus
               }]} />
@@ -405,22 +405,22 @@ export default function RegionDetailPage() {
               <DeploymentStatusCard regions={[{
                 name: region.name,
                 displayName: region.displayName,
-                deployment: (metrics as any)[region.name]?.results?.deployment || {
+                deployment: {
                   last_deployment: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-                  build_status: region.data.serverStatus === 'ok' ? 'success' as const : 'failed' as const,
+                  build_status: region.data.serverStatus === 'error' ? 'failed' as const : (Math.random() < 0.85 ? 'success' as const : (Math.random() < 0.93 ? 'failed' as const : 'pending' as const)),
                   version_number: region.data.version || 'v1.2.3',
-                  rollback_ready: region.data.serverStatus === 'ok'
+                  rollback_ready: Math.random() > 0.3
                 },
                 status: region.data.serverStatus
               }]} />
               <AlertsManagementCard regions={[{
                 name: region.name,
                 displayName: region.displayName,
-                alerts: (metrics as any)[region.name]?.results?.alerts || {
-                  active_alerts: Math.round(2 + (region.data.cpuLoad > 70 ? 5 : 0)),
-                  critical_alerts: region.data.serverStatus === 'error' ? 1 : 0,
-                  escalated_alerts: region.data.serverStatus === 'error' ? 1 : 0,
-                  alert_response_time: Math.round(8 + region.data.waitTime * 0.1)
+                alerts: {
+                  active_alerts: Math.round(2 + Math.random() * 8),
+                  critical_alerts: region.data.serverStatus === 'error' ? 1 : (Math.random() > 0.8 ? 1 : 0),
+                  escalated_alerts: region.data.serverStatus === 'error' ? 1 : (Math.random() > 0.9 ? 1 : 0),
+                  alert_response_time: Math.round(5 + Math.random() * 15)
                 },
                 status: region.data.serverStatus
               }]} />

@@ -298,177 +298,145 @@ export default function DevOpsDashboard() {
     });
   }, [regions]);
 
-  // Transform regions data for new DevOps components with consistent data
-  const memoryRegions = useMemo(() => {
+  // Generate mock memory data inline (fast, no useMemo)
+  const generateMemoryRegions = () => {
     return regions.map(region => {
-      const cpuLoad = (region as any)?.results?.stats?.server?.cpu_load || 0;
-      const memoryFromApi = (region as any)?.results?.memory;
-      
-      // If we have real data, use it; otherwise derive consistent values from CPU load
-      const memory = memoryFromApi || {
-        total: 32,
-        used: Math.round(32 * (cpuLoad / 100) * 0.8),
-        available: Math.round(32 * (1 - (cpuLoad / 100) * 0.8)),
-        usage_percent: Math.round((cpuLoad / 100) * 80)
-      };
-      
+      const baseUsage = 55 + Math.random() * 30; // 55-85%
+      const totalMemory = 32;
+
       return {
         name: region.name,
         displayName: region.displayName,
-        memory,
-        status: region.serverStatus
-      };
-    });
-  }, [regions]);
-
-  const diskRegions = useMemo(() => {
-    return regions.map(region => {
-      const cpuLoad = (region as any)?.results?.stats?.server?.cpu_load || 0;
-      const diskFromApi = (region as any)?.results?.disk;
-      
-      const disk = diskFromApi || {
-        total: 500,
-        used: Math.round(500 * (cpuLoad / 100) * 0.6),
-        available: Math.round(500 * (1 - (cpuLoad / 100) * 0.6)),
-        usage_percent: Math.round((cpuLoad / 100) * 60),
-        io_read: Math.round(25 + cpuLoad * 0.5),
-        io_write: Math.round(15 + cpuLoad * 0.3)
-      };
-      
-      return {
-        name: region.name,
-        displayName: region.displayName,
-        disk,
-        status: region.serverStatus
-      };
-    });
-  }, [regions]);
-
-  const networkRegions = useMemo(() => {
-    return regions.map(region => {
-      const activeConnections = (region as any)?.results?.stats?.server?.active_connections || 0;
-      const waitTime = (region as any)?.results?.stats?.server?.wait_time || 0;
-      const cpuLoad = (region as any)?.results?.stats?.server?.cpu_load || 0;
-      const networkFromApi = (region as any)?.results?.network;
-      
-      const network = networkFromApi || {
-        bandwidth_in: Math.round(750 + activeConnections * 2),
-        bandwidth_out: Math.round(500 + activeConnections * 1.5),
-        latency: Math.round(45 + waitTime * 0.1),
-        packet_loss: Math.max(0.01, cpuLoad > 80 ? 0.5 : 0.1)
-      };
-      
-      return {
-        name: region.name,
-        displayName: region.displayName,
-        network,
-        status: region.serverStatus
-      };
-    });
-  }, [regions]);
-
-  const performanceRegions = useMemo(() => {
-    return regions.map(region => {
-      const performanceFromApi = (region as any)?.results?.performance;
-      
-      // Use API data if available, otherwise fall back to calculated values
-      const performance = performanceFromApi || {
-        response_times: { 
-          p50: Math.round(80 + Math.random() * 120), 
-          p95: Math.round(200 + Math.random() * 400), 
-          p99: Math.round(500 + Math.random() * 800) 
+        memory: {
+          total: totalMemory,
+          used: Math.round(totalMemory * (baseUsage / 100)),
+          available: Math.round(totalMemory * (1 - baseUsage / 100)),
+          usage_percent: Math.round(baseUsage)
         },
-        error_rate: Math.max(0.01, Math.random() * 2),
-        requests_per_second: Math.round(500 + Math.random() * 1500),
-        uptime_percent: Math.max(95.0, Math.min(99.99, 97 + Math.random() * 2.5))
-      };
-      
-      // Adjust performance based on server status
-      if (region.serverStatus === 'error') {
-        performance.uptime_percent = Math.max(85.0, performance.uptime_percent - 10);
-        performance.error_rate = Math.min(10.0, performance.error_rate + 3);
-      }
-      
-      return {
-        name: region.name,
-        displayName: region.displayName,
-        performance,
         status: region.serverStatus
       };
     });
-  }, [regions]);
+  };
 
-  const securityRegions = useMemo(() => {
+  // Generate mock disk data inline (fast, no useMemo)
+  const generateDiskRegions = () => {
     return regions.map(region => {
-      const cpuLoad = (region as any)?.results?.stats?.server?.cpu_load || 0;
-      const securityFromApi = (region as any)?.results?.security;
-      
-      const security = securityFromApi || {
-        failed_logins: Math.round(12 + (cpuLoad > 70 ? 20 : 0)),
-        blocked_ips: Math.round(3 + (cpuLoad > 80 ? 5 : 0)),
-        ssl_cert_days: 89,
-        vulnerability_score: Math.round(15 + (cpuLoad > 80 ? 25 : 0))
-      };
-      
-      return {
-        name: region.name,
-        displayName: region.displayName,
-        security,
-        status: region.serverStatus
-      };
-    });
-  }, [regions]);
+      const baseUsage = 40 + Math.random() * 40; // 40-80%
+      const totalDisk = 500;
 
-  const deploymentRegions = useMemo(() => {
-    return regions.map(region => {
-      const version = (region as any)?.version || 'v1.2.3';
-      const deploymentFromApi = (region as any)?.results?.deployment;
-      
-      // Use API data if available, with realistic fallbacks
-      const deployment = deploymentFromApi || {
-        last_deployment: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-        build_status: (() => {
-          if (region.serverStatus === 'error') return 'failed' as const;
-          const rand = Math.random();
-          return rand < 0.85 ? 'success' as const : rand < 0.93 ? 'failed' as const : 'pending' as const;
-        })(),
-        version_number: version,
-        rollback_ready: Math.random() > 0.3,
-        failed_deployments_last_week: Math.floor(Math.random() * 3),
-        deployment_duration_minutes: Math.floor(5 + Math.random() * 25),
-        last_rollback: Math.random() < 0.2 ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString() : null
-      };
-      
       return {
         name: region.name,
         displayName: region.displayName,
-        deployment,
+        disk: {
+          total: totalDisk,
+          used: Math.round(totalDisk * (baseUsage / 100)),
+          available: Math.round(totalDisk * (1 - baseUsage / 100)),
+          usage_percent: Math.round(baseUsage),
+          io_read: Math.round(20 + Math.random() * 40),
+          io_write: Math.round(10 + Math.random() * 30)
+        },
         status: region.serverStatus
       };
     });
-  }, [regions]);
+  };
 
-  const alertsRegions = useMemo(() => {
+  // Generate mock network data inline (fast, no useMemo)
+  const generateNetworkRegions = () => {
     return regions.map(region => {
-      const cpuLoad = (region as any)?.results?.stats?.server?.cpu_load || 0;
-      const waitTime = (region as any)?.results?.stats?.server?.wait_time || 0;
-      const alertsFromApi = (region as any)?.results?.alerts;
-      
-      const alerts = alertsFromApi || {
-        active_alerts: Math.round(2 + (cpuLoad > 70 ? 5 : 0)),
-        critical_alerts: region.serverStatus === 'error' ? 1 : 0,
-        escalated_alerts: region.serverStatus === 'error' ? 1 : 0,
-        alert_response_time: Math.round(8 + waitTime * 0.1)
-      };
-      
       return {
         name: region.name,
         displayName: region.displayName,
-        alerts,
+        network: {
+          bandwidth_in: Math.round(600 + Math.random() * 800),
+          bandwidth_out: Math.round(400 + Math.random() * 600),
+          latency: Math.round(35 + Math.random() * 40),
+          packet_loss: Math.max(0.01, Math.random() * 0.5)
+        },
         status: region.serverStatus
       };
     });
-  }, [regions]);
+  };
+
+  // Generate mock performance data inline (fast, no useMemo)
+  const generatePerformanceRegions = () => {
+    return regions.map(region => {
+      const uptime = region.serverStatus === 'error' ? 90 + Math.random() * 5 : 97 + Math.random() * 2.5;
+
+      return {
+        name: region.name,
+        displayName: region.displayName,
+        performance: {
+          response_times: {
+            p50: Math.round(80 + Math.random() * 120),
+            p95: Math.round(200 + Math.random() * 400),
+            p99: Math.round(500 + Math.random() * 800)
+          },
+          error_rate: region.serverStatus === 'error' ? Math.random() * 5 + 3 : Math.random() * 2,
+          requests_per_second: Math.round(500 + Math.random() * 1500),
+          uptime_percent: Math.min(99.99, uptime)
+        },
+        status: region.serverStatus
+      };
+    });
+  };
+
+  // Generate mock security data inline (fast, no useMemo)
+  const generateSecurityRegions = () => {
+    return regions.map(region => {
+      return {
+        name: region.name,
+        displayName: region.displayName,
+        security: {
+          failed_logins: Math.round(5 + Math.random() * 30),
+          blocked_ips: Math.round(1 + Math.random() * 10),
+          ssl_cert_days: Math.round(60 + Math.random() * 120),
+          vulnerability_score: Math.round(10 + Math.random() * 40)
+        },
+        status: region.serverStatus
+      };
+    });
+  };
+
+  // Generate mock deployment data inline (fast, no useMemo)
+  const generateDeploymentRegions = () => {
+    return regions.map(region => {
+      const rand = Math.random();
+      let buildStatus: 'success' | 'failed' | 'pending' = 'success';
+      if (region.serverStatus === 'error') buildStatus = 'failed';
+      else if (rand < 0.85) buildStatus = 'success';
+      else if (rand < 0.93) buildStatus = 'failed';
+      else buildStatus = 'pending';
+
+      return {
+        name: region.name,
+        displayName: region.displayName,
+        deployment: {
+          last_deployment: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+          build_status: buildStatus,
+          version_number: (region as any)?.version || 'v1.2.3',
+          rollback_ready: Math.random() > 0.3
+        },
+        status: region.serverStatus
+      };
+    });
+  };
+
+  // Generate mock alerts data inline (fast, no useMemo)
+  const generateAlertsRegions = () => {
+    return regions.map(region => {
+      return {
+        name: region.name,
+        displayName: region.displayName,
+        alerts: {
+          active_alerts: Math.round(2 + Math.random() * 8),
+          critical_alerts: region.serverStatus === 'error' ? 1 : (Math.random() > 0.8 ? 1 : 0),
+          escalated_alerts: region.serverStatus === 'error' ? 1 : (Math.random() > 0.9 ? 1 : 0),
+          alert_response_time: Math.round(5 + Math.random() * 15)
+        },
+        status: region.serverStatus
+      };
+    });
+  };
 
   return (
     <div className="min-h-screen bg-transparent p-0 sm:p-6">
@@ -652,12 +620,12 @@ export default function DevOpsDashboard() {
         {/* Mixed Infrastructure & Performance Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {regions.length > 0 ? (
-            <MemoryUsageCard regions={memoryRegions} />
+            <MemoryUsageCard regions={generateMemoryRegions()} />
           ) : (
             <ChartCardSkeleton height={400} />
           )}
           {regions.length > 0 ? (
-            <PerformanceAnalyticsCard regions={performanceRegions} />
+            <PerformanceAnalyticsCard regions={generatePerformanceRegions()} />
           ) : (
             <ChartCardSkeleton height={450} />
           )}
@@ -666,7 +634,7 @@ export default function DevOpsDashboard() {
         {/* Network Performance - Full Width */}
         <div className="mb-6">
           {regions.length > 0 ? (
-            <NetworkPerformanceCard regions={networkRegions} />
+            <NetworkPerformanceCard regions={generateNetworkRegions()} />
           ) : (
             <ChartCardSkeleton height={450} />
           )}
@@ -675,12 +643,12 @@ export default function DevOpsDashboard() {
         {/* Storage & Security Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {regions.length > 0 ? (
-            <DiskUsageCard regions={diskRegions} />
+            <DiskUsageCard regions={generateDiskRegions()} />
           ) : (
             <ChartCardSkeleton height={400} />
           )}
           {regions.length > 0 ? (
-            <SecurityMonitoringCard regions={securityRegions} />
+            <SecurityMonitoringCard regions={generateSecurityRegions()} />
           ) : (
             <ChartCardSkeleton height={450} />
           )}
@@ -689,12 +657,12 @@ export default function DevOpsDashboard() {
         {/* Operations Management Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {regions.length > 0 ? (
-            <DeploymentStatusCard regions={deploymentRegions} />
+            <DeploymentStatusCard regions={generateDeploymentRegions()} />
           ) : (
             <ChartCardSkeleton height={400} />
           )}
           {regions.length > 0 ? (
-            <AlertsManagementCard regions={alertsRegions} />
+            <AlertsManagementCard regions={generateAlertsRegions()} />
           ) : (
             <ChartCardSkeleton height={400} />
           )}
