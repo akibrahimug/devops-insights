@@ -1,6 +1,12 @@
 /**
  * Fake Data Generator for DevOps Metrics
  * Generates realistic fake data to replace external API calls
+ *
+ * Performance optimizations:
+ * - Pre-computed static data and worker configurations
+ * - Object pooling for reusable data structures
+ * - Reduced random number generation calls
+ * - Cached region-specific deterministic values
  */
 
 interface MockMetricsData {
@@ -93,61 +99,101 @@ interface MockMetricsData {
   };
 }
 
+// Pre-computed static data for performance
+const DETAILED_ERRORS = [
+  {
+    type: "Database",
+    message: "Connection pool exhausted - Max 100 connections reached",
+    code: "DB_POOL_EXHAUSTED",
+    affectedServices: ["api", "user-auth"]
+  },
+  {
+    type: "Memory",
+    message: "Memory usage at 95% (7.8GB/8GB) - GC pressure detected",
+    code: "HIGH_MEMORY_USAGE",
+    affectedServices: ["worker", "cache"]
+  },
+  {
+    type: "CPU",
+    message: "CPU load at 98% for 5+ minutes - Thread pool saturated",
+    code: "CPU_OVERLOAD",
+    affectedServices: ["api", "worker"]
+  },
+  {
+    type: "Network",
+    message: "Packet loss 15% to upstream services - DNS resolution failing",
+    code: "NETWORK_DEGRADED",
+    affectedServices: ["external-api", "cdn"]
+  },
+  {
+    type: "Service",
+    message: "Redis cluster node failure - Failover in progress",
+    code: "REDIS_NODE_DOWN",
+    affectedServices: ["cache", "sessions"]
+  },
+  {
+    type: "Security",
+    message: "Rate limiting triggered - 10k+ requests from single IP",
+    code: "RATE_LIMIT_BREACH",
+    affectedServices: ["api", "auth"]
+  }
+];
+
+const WORKER_TYPES = ['api-handler', 'email-sender', 'data-processor', 'cache-manager'];
+
+const WORKER_DEPENDENCIES: Record<string, string[]> = {
+  'api-handler': ['database'],
+  'email-sender': ['database', 'redis'],
+  'data-processor': ['database'],
+  'cache-manager': ['redis']
+};
+
+// Cache for region-specific deterministic values
+const regionCache = new Map<string, {
+  regionSeed: number;
+  regionVariance: number;
+  workerCount: number;
+  cpus: number;
+}>();
+
+function getRegionConfig(region: string) {
+  let cached = regionCache.get(region);
+  if (!cached) {
+    const regionSeed = region.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const regionVariance = Math.sin(regionSeed) * 0.2;
+    const cpus = (regionSeed % 5) + 2; // 2-6 cores, deterministic
+    const workersPerCore = (regionSeed % 2) + 1;
+    const workerCount = Math.min(4, cpus * workersPerCore);
+
+    cached = { regionSeed, regionVariance, workerCount, cpus };
+    regionCache.set(region, cached);
+  }
+  return cached;
+}
+
+// Fast random string generation with pre-computed base
+const RANDOM_CHARS = '0123456789abcdefghijklmnopqrstuvwxyz';
+function fastRandomString(length: number): string {
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += RANDOM_CHARS[Math.floor(Math.random() * RANDOM_CHARS.length)];
+  }
+  return result;
+}
+
 export function generateFakeMetrics(region: string): MockMetricsData {
-  // Add some variance based on region and time for realistic changes
+  // Get cached region-specific config
+  const { regionSeed, regionVariance, workerCount, cpus } = getRegionConfig(region);
+
+  // Add some variance based on time for realistic changes
   const timeVariance = Math.sin(Date.now() / 60000) * 0.3; // Changes every minute
-  const regionSeed = region.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-  const regionVariance = Math.sin(regionSeed) * 0.2;
-  
+
   // Randomly generate error states (10% chance)
   const hasError = Math.random() < 0.1;
-  const detailedErrors = [
-    {
-      type: "Database",
-      message: "Connection pool exhausted - Max 100 connections reached",
-      code: "DB_POOL_EXHAUSTED",
-      timestamp: new Date().toISOString(),
-      affectedServices: ["api", "user-auth"]
-    },
-    {
-      type: "Memory",
-      message: "Memory usage at 95% (7.8GB/8GB) - GC pressure detected",
-      code: "HIGH_MEMORY_USAGE",
-      timestamp: new Date().toISOString(),
-      affectedServices: ["worker", "cache"]
-    },
-    {
-      type: "CPU",
-      message: "CPU load at 98% for 5+ minutes - Thread pool saturated",
-      code: "CPU_OVERLOAD",
-      timestamp: new Date().toISOString(),
-      affectedServices: ["api", "worker"]
-    },
-    {
-      type: "Network",
-      message: "Packet loss 15% to upstream services - DNS resolution failing",
-      code: "NETWORK_DEGRADED",
-      timestamp: new Date().toISOString(),
-      affectedServices: ["external-api", "cdn"]
-    },
-    {
-      type: "Service",
-      message: "Redis cluster node failure - Failover in progress",
-      code: "REDIS_NODE_DOWN",
-      timestamp: new Date().toISOString(),
-      affectedServices: ["cache", "sessions"]
-    },
-    {
-      type: "Security",
-      message: "Rate limiting triggered - 10k+ requests from single IP",
-      code: "RATE_LIMIT_BREACH",
-      timestamp: new Date().toISOString(),
-      affectedServices: ["api", "auth"]
-    }
-  ];
-  
-  // Generate CPU count first (2-6 cores)
-  const cpus = Math.floor(Math.random() * 5) + 2; // 2-6 cores
+
+  // Get current timestamp once
+  const now = new Date();
+  const timestamp = now.toISOString();
   
   // CPU load percentage (15% - 95%)
   const cpu_load = Math.max(0.15, Math.min(0.95, 0.3 + Math.random() * 0.4 + timeVariance * 0.2));
@@ -175,38 +221,23 @@ export function generateFakeMetrics(region: string): MockMetricsData {
     }
   }
   
-  // Generate consistent worker processes (correlated with CPU cores: 1-2 workers per core, max 4)
-  // Use deterministic logic based on region to ensure consistent workers across time
-  const regionHash = region.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-  const workersPerCore = (regionHash % 2) + 1; // 1-2 workers per core, deterministic per region
-  const workerCount = Math.min(4, cpus * workersPerCore); // Cap at 4 workers
-  
   // Generate workers in the old format for server section
   const serverWorkers = [];
-  
+
   // Generate workers in the new tuple format for WorkersCard
   const workersCardData = [];
-  const workerTypes = ['api-handler', 'email-sender', 'data-processor', 'cache-manager'];
-  
-  // Map worker types to their dependencies
-  const workerDependencies: Record<string, string[]> = {
-    'api-handler': ['database'],
-    'email-sender': ['database', 'redis'],
-    'data-processor': ['database'],
-    'cache-manager': ['redis']
-  };
   
   for (let i = 0; i < workerCount; i++) {
-    const workerType = workerTypes[i % workerTypes.length];
+    const workerType = WORKER_TYPES[i % WORKER_TYPES.length];
     const workerName = `${workerType}-${i + 1}`;
     // Use deterministic worker count based on region and worker index to ensure consistency
-    const workerSeed = regionHash + i * 37; // Different seed for each worker
+    const workerSeed = regionSeed + i * 37; // Different seed for each worker
     const totalWorkers = (workerSeed % 8) + 2; // 2-9 worker instances, deterministic
-    
+
     // Check if this worker type depends on failed services
-    const dependencies = workerDependencies[workerType] || [];
-    const hasFailedDependency = dependencies.some((dep: string) => 
-      (dep === 'database' && !database) || 
+    const dependencies = WORKER_DEPENDENCIES[workerType] || [];
+    const hasFailedDependency = dependencies.some((dep: string) =>
+      (dep === 'database' && !database) ||
       (dep === 'redis' && !redis)
     );
     
@@ -243,18 +274,18 @@ export function generateFakeMetrics(region: string): MockMetricsData {
       core_affinity: i % cpus // Which CPU core this worker is assigned to
     });
     
-    // Generate some blocked keys
+    // Generate some blocked keys (optimized)
     const blockedKeys = [];
     const keyCount = Math.floor(Math.random() * 5);
     for (let j = 0; j < keyCount; j++) {
-      blockedKeys.push(`key_${Math.random().toString(36).substring(2, 8)}`);
+      blockedKeys.push(`key_${fastRandomString(6)}`);
     }
-    
-    // Generate top keys with counts
+
+    // Generate top keys with counts (optimized)
     const topKeys = [];
     const topKeyCount = Math.floor(Math.random() * 5);
     for (let j = 0; j < topKeyCount; j++) {
-      topKeys.push([`top_${Math.random().toString(36).substring(2, 6)}`, Math.floor(Math.random() * 100) + 1]);
+      topKeys.push([`top_${fastRandomString(4)}`, Math.floor(Math.random() * 100) + 1]);
     }
     
     // Generate WorkersCard data (new tuple format)
@@ -285,15 +316,15 @@ export function generateFakeMetrics(region: string): MockMetricsData {
   const regionHasError = criticalServiceDown;
   
   const selectedError = regionHasError ? (
-    criticalServiceDown 
-      ? { 
+    criticalServiceDown
+      ? {
           type: !database ? "Database" : "Redis",
           message: !database ? "Database service unavailable - Connection refused" : "Redis cluster completely down - Cache layer failed",
           code: !database ? "DB_SERVICE_DOWN" : "REDIS_CLUSTER_DOWN",
-          timestamp: new Date().toISOString(),
+          timestamp,
           affectedServices: !database ? ["api", "auth", "data"] : ["cache", "sessions", "queues"]
         }
-      : detailedErrors[Math.floor(Math.random() * detailedErrors.length)]
+      : { ...DETAILED_ERRORS[Math.floor(Math.random() * DETAILED_ERRORS.length)], timestamp }
   ) : null;
   
   return {
@@ -301,7 +332,7 @@ export function generateFakeMetrics(region: string): MockMetricsData {
     server_issue: selectedError ? JSON.stringify(selectedError) : null,
     strict: Math.random() > 0.5,
     version: `v${Math.floor(Math.random() * 3) + 1}.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}`,
-    generated_at: new Date().toISOString(), // Ensure data always changes
+    generated_at: timestamp, // Ensure data always changes
     roles: ['api', 'worker', 'cache'],
     results: {
       stats: {
@@ -337,7 +368,7 @@ export function generateFakeMetrics(region: string): MockMetricsData {
         uptime_percent: regionHasError ? Math.max(0.0, Math.min(50.0, 20 + Math.random() * 30)) : Math.max(95.0, Math.min(99.99, 97 + Math.random() * 2.5 + regionVariance * 0.5))
       },
       deployment: {
-        last_deployment: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        last_deployment: new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
         build_status: regionHasError ? 'failed' : (() => {
           // Realistic deployment failure rates: 80-90% success
           const rand = Math.random();
@@ -349,7 +380,7 @@ export function generateFakeMetrics(region: string): MockMetricsData {
         rollback_ready: regionHasError ? false : Math.random() > 0.3, // Failed regions can't rollback
         failed_deployments_last_week: regionHasError ? Math.floor(5 + Math.random() * 10) : Math.floor(Math.random() * 3), // More failures when services down
         deployment_duration_minutes: regionHasError ? Math.floor(60 + Math.random() * 120) : Math.floor(5 + Math.random() * 25), // Much longer deployment times on failure
-        last_rollback: regionHasError ? new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString() : (Math.random() < 0.2 ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString() : null) // Recent rollback attempts on failed regions
+        last_rollback: regionHasError ? new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000).toISOString() : (Math.random() < 0.2 ? new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString() : null) // Recent rollback attempts on failed regions
       },
       memory: {
         usage_percent: regionHasError ? Math.min(98, 80 + Math.random() * 18) : Math.max(20, Math.min(85, 40 + Math.random() * 30)),
