@@ -298,8 +298,8 @@ export default function DevOpsDashboard() {
     });
   }, [regions]);
 
-  // Generate mock memory data inline (fast, no useMemo)
-  const generateMemoryRegions = () => {
+  // Generate mock memory data (updates when regions or lastUpdated changes)
+  const memoryRegions = useMemo(() => {
     return regions.map(region => {
       const baseUsage = 55 + Math.random() * 30; // 55-85%
       const totalMemory = 32;
@@ -316,10 +316,10 @@ export default function DevOpsDashboard() {
         status: region.serverStatus
       };
     });
-  };
+  }, [regions, lastUpdated]);
 
-  // Generate mock disk data inline (fast, no useMemo)
-  const generateDiskRegions = () => {
+  // Generate mock disk data (updates when regions or lastUpdated changes)
+  const diskRegions = useMemo(() => {
     return regions.map(region => {
       const baseUsage = 40 + Math.random() * 40; // 40-80%
       const totalDisk = 500;
@@ -338,10 +338,10 @@ export default function DevOpsDashboard() {
         status: region.serverStatus
       };
     });
-  };
+  }, [regions, lastUpdated]);
 
-  // Generate mock network data inline (fast, no useMemo)
-  const generateNetworkRegions = () => {
+  // Generate mock network data (updates when regions or lastUpdated changes)
+  const networkRegions = useMemo(() => {
     return regions.map(region => {
       return {
         name: region.name,
@@ -355,10 +355,10 @@ export default function DevOpsDashboard() {
         status: region.serverStatus
       };
     });
-  };
+  }, [regions, lastUpdated]);
 
-  // Generate mock performance data inline (fast, no useMemo)
-  const generatePerformanceRegions = () => {
+  // Generate mock performance data (updates when regions or lastUpdated changes)
+  const performanceRegions = useMemo(() => {
     return regions.map(region => {
       const uptime = region.serverStatus === 'error' ? 90 + Math.random() * 5 : 97 + Math.random() * 2.5;
 
@@ -378,10 +378,10 @@ export default function DevOpsDashboard() {
         status: region.serverStatus
       };
     });
-  };
+  }, [regions, lastUpdated]);
 
-  // Generate mock security data inline (fast, no useMemo)
-  const generateSecurityRegions = () => {
+  // Generate mock security data (updates when regions or lastUpdated changes)
+  const securityRegions = useMemo(() => {
     return regions.map(region => {
       return {
         name: region.name,
@@ -395,10 +395,10 @@ export default function DevOpsDashboard() {
         status: region.serverStatus
       };
     });
-  };
+  }, [regions, lastUpdated]);
 
-  // Generate mock deployment data inline (fast, no useMemo)
-  const generateDeploymentRegions = () => {
+  // Generate mock deployment data (updates when regions or lastUpdated changes)
+  const deploymentRegions = useMemo(() => {
     return regions.map(region => {
       const rand = Math.random();
       let buildStatus: 'success' | 'failed' | 'pending' = 'success';
@@ -419,10 +419,10 @@ export default function DevOpsDashboard() {
         status: region.serverStatus
       };
     });
-  };
+  }, [regions, lastUpdated]);
 
-  // Generate mock alerts data inline (fast, no useMemo)
-  const generateAlertsRegions = () => {
+  // Generate mock alerts data (updates when regions or lastUpdated changes)
+  const alertsRegions = useMemo(() => {
     return regions.map(region => {
       return {
         name: region.name,
@@ -436,7 +436,7 @@ export default function DevOpsDashboard() {
         status: region.serverStatus
       };
     });
-  };
+  }, [regions, lastUpdated]);
 
   return (
     <div className="min-h-screen bg-transparent p-0 sm:p-6">
@@ -498,14 +498,14 @@ export default function DevOpsDashboard() {
                   return (
                     <Card
                       key={item.title}
-                      className={`transition-all duration-300 animate-fade-in shadow backdrop-blur hover:shadow-md hover:scale-[1.02] ${cardBgClass}`}
+                      className={`transition-all duration-300 animate-fade-in shadow backdrop-blur hover:shadow-md hover:scale-[1.02] ${cardBgClass} ${isError ? 'min-h-[140px]' : ''}`}
                       style={{ animationDelay: `${index * 40}ms` }}
                     >
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate pr-2">
                           {item.title}
                         </div>
-                        <div className={`p-2 rounded-lg ${iconBgClass}`}>
+                        <div className={`p-2 rounded-lg ${iconBgClass} flex-shrink-0`}>
                           <WarningIcon
                             className={`h-4 w-4 ${getMetricColor(item.value, {
                               good: 0.5,
@@ -515,20 +515,20 @@ export default function DevOpsDashboard() {
                           />
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <div className={`text-2xl font-bold ${valueTextClass}`}>
+                      <CardContent className="overflow-hidden">
+                        <div className={`text-2xl font-bold ${valueTextClass} mb-2`}>
                           {isError ? "FAILED" : formatPercentage(item.value)}
                         </div>
                         {isError && errorMessage && (
-                          <div className="mt-2 space-y-1">
-                            <div className="text-xs text-red-700 dark:text-red-300 font-medium">
+                          <div className="mt-2 space-y-1 max-h-[80px] overflow-y-auto pr-1 custom-scrollbar">
+                            <div className="text-xs text-red-700 dark:text-red-300 font-medium truncate" title={`${errorType}: ${errorCode}`}>
                               <span className="font-semibold">{errorType}:</span> {errorCode}
                             </div>
-                            <div className="text-xs text-red-600 dark:text-red-400 break-words">
+                            <div className="text-xs text-red-600 dark:text-red-400 line-clamp-2" title={errorMessage}>
                               {errorMessage}
                             </div>
                             {affectedServices.length > 0 && (
-                              <div className="text-xs text-red-500 dark:text-red-400">
+                              <div className="text-xs text-red-500 dark:text-red-400 truncate" title={`Services: ${affectedServices.join(', ')}`}>
                                 Services: {affectedServices.join(', ')}
                               </div>
                             )}
@@ -620,12 +620,12 @@ export default function DevOpsDashboard() {
         {/* Mixed Infrastructure & Performance Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {regions.length > 0 ? (
-            <MemoryUsageCard regions={generateMemoryRegions()} />
+            <MemoryUsageCard regions={memoryRegions} />
           ) : (
             <ChartCardSkeleton height={400} />
           )}
           {regions.length > 0 ? (
-            <PerformanceAnalyticsCard regions={generatePerformanceRegions()} />
+            <PerformanceAnalyticsCard regions={performanceRegions} />
           ) : (
             <ChartCardSkeleton height={450} />
           )}
@@ -634,7 +634,7 @@ export default function DevOpsDashboard() {
         {/* Network Performance - Full Width */}
         <div className="mb-6">
           {regions.length > 0 ? (
-            <NetworkPerformanceCard regions={generateNetworkRegions()} />
+            <NetworkPerformanceCard regions={networkRegions} />
           ) : (
             <ChartCardSkeleton height={450} />
           )}
@@ -643,12 +643,12 @@ export default function DevOpsDashboard() {
         {/* Storage & Security Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {regions.length > 0 ? (
-            <DiskUsageCard regions={generateDiskRegions()} />
+            <DiskUsageCard regions={diskRegions} />
           ) : (
             <ChartCardSkeleton height={400} />
           )}
           {regions.length > 0 ? (
-            <SecurityMonitoringCard regions={generateSecurityRegions()} />
+            <SecurityMonitoringCard regions={securityRegions} />
           ) : (
             <ChartCardSkeleton height={450} />
           )}
@@ -657,12 +657,12 @@ export default function DevOpsDashboard() {
         {/* Operations Management Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {regions.length > 0 ? (
-            <DeploymentStatusCard regions={generateDeploymentRegions()} />
+            <DeploymentStatusCard regions={deploymentRegions} />
           ) : (
             <ChartCardSkeleton height={400} />
           )}
           {regions.length > 0 ? (
-            <AlertsManagementCard regions={generateAlertsRegions()} />
+            <AlertsManagementCard regions={alertsRegions} />
           ) : (
             <ChartCardSkeleton height={400} />
           )}
