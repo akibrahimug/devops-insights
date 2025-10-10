@@ -116,6 +116,12 @@ export default function DevOpsDashboard() {
   // invalid entries and normalizes the shape for downstream components.
   useEffect(() => {
     if (Object.keys(metrics).length === 0) return;
+
+    console.log("📊 [Dashboard] Metrics changed, reprocessing regions...", {
+      metricsCount: Object.keys(metrics).length,
+      sources: Object.keys(metrics)
+    });
+
     const allowedSources = ["us-east", "eu-west", "eu-central", "us-west", "sa-east", "ap-southeast"];
     const processed = Object.entries(metrics)
       .filter(
@@ -123,12 +129,7 @@ export default function DevOpsDashboard() {
           const isAllowed = allowedSources.includes(key);
           const hasValue = value && typeof value === "object";
           const hasStatus = value?.status;
-          
-          // Debug logging for troubleshooting
-          if (isAllowed && hasValue && !hasStatus) {
-            console.warn(`Region ${key} missing status:`, value);
-          }
-          
+
           return isAllowed && hasValue && hasStatus;
         }
       )
@@ -149,20 +150,16 @@ export default function DevOpsDashboard() {
           health,
         };
       });
-    console.log("Latest mode processed regions:", processed);
+
+    console.log("✅ [Dashboard] Processed regions:", {
+      count: processed.length,
+      regions: processed.map(r => ({ name: r.name, status: r.serverStatus, memoryUsage: (r as any)?.results?.memory?.usage_percent }))
+    });
+
     setRegions(processed);
     setLastUpdated(new Date());
   }, [metrics]);
 
-  // Debug snapshot (latest only): optional table of current sources for dev.
-  useEffect(() => {
-    try {
-      const sourcesLatest = Object.keys(metrics || {});
-      console.groupCollapsed("Dashboard data snapshot (latest)");
-      console.table(sourcesLatest.map((s) => ({ source: s })));
-      console.groupEnd();
-    } catch {}
-  }, [metrics, isConnected]);
 
   // Initialize / control data flow based on live toggle and connection.
   useEffect(() => {
@@ -300,6 +297,7 @@ export default function DevOpsDashboard() {
 
   // Extract real memory data from WebSocket (updates when regions change)
   const memoryRegions = useMemo(() => {
+    console.log("💾 [Dashboard] Recalculating memory regions from:", regions.length, "regions");
     const data = regions.map(region => {
       const regionData = region as any;
       const memoryData = regionData?.results?.memory;
@@ -316,7 +314,7 @@ export default function DevOpsDashboard() {
         status: region.serverStatus
       };
     });
-    console.log('💾 Memory data updated from WebSocket:', data.map(d => ({ region: d.name, usage: d.memory.usage_percent })));
+    console.log("💾 [Dashboard] Memory data:", data.map(d => ({ region: d.name, usage: d.memory.usage_percent })));
     return data;
   }, [regions]);
 

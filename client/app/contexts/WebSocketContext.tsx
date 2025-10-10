@@ -101,7 +101,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   // and a history channel for time window queries.
   useEffect(() => {
     // Initialize Socket.IO connection
-    console.log("WS init", { backendUrl: BACKEND_URL });
     const newSocket = io(BACKEND_URL, {
       transports: ["websocket", "polling"], // Prefer WebSocket; Socket.IO will fall back to polling if WS is unavailable
       reconnection: true,
@@ -112,27 +111,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Connection event handlers
     newSocket.on("connect", () => {
-      console.log("Connected to DevOps Insights backend", {
-        id: newSocket.id,
-        transport: (newSocket as any).io?.engine?.transport?.name,
-      });
+      console.log("✅ [WebSocket] Connected to backend, socket ID:", newSocket.id);
       setIsConnected(true);
       setError(null);
     });
 
     // Disconnect event handler
     newSocket.on("disconnect", (reason) => {
-      console.log("Disconnected from backend:", reason);
       setIsConnected(false);
     });
 
     // Connection error event handler
     newSocket.on("connect_error", (err) => {
-      console.error("Connection error:", {
-        message: err?.message,
-        name: err?.name,
-        description: (err as any)?.description,
-      });
       setError(`Connection failed: ${err.message}`);
       setIsConnected(false);
     });
@@ -141,11 +131,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     // Latest snapshot payload. If a source is provided, I update just that key;
     // otherwise the payload contains a map of all sources.
     newSocket.on("metrics:data", (data: MetricsResponse) => {
-      // Only log in live mode; still process payload for initial/latest snapshots
-      if (liveEnabledRef.current) {
-        console.log("Received metrics data:", data);
-      }
-
       // If the data has a source, update the metrics for that source
       if (data.source) {
         // Single source data (e.g. a single server)
@@ -156,20 +141,24 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         // subscribe to realtime updates for this source (only if live mode)
         if (liveEnabledRef.current) {
           try {
+            console.log("📡 [WebSocket] Subscribing to source:", data.source);
             newSocket.emit("metrics:subscribe", { source: data.source });
           } catch {}
         }
       } else {
         // All sources data (e.g. all servers)
+        console.log("📊 [WebSocket] Received all sources data, count:", Object.keys(data.data as Record<string, MetricData>).length);
         setMetrics(data.data as Record<string, MetricData>);
         if (data.updatedAtBySource) setLatestTimestamps(data.updatedAtBySource);
         // subscribe to realtime updates for all sources returned (only if live mode)
         if (liveEnabledRef.current) {
           try {
             const all = data.data as Record<string, MetricData>;
-            Object.keys(all || {}).forEach((src) =>
-              newSocket.emit("metrics:subscribe", { source: src })
-            );
+            const sources = Object.keys(all || {});
+            console.log("📡 [WebSocket] Subscribing to", sources.length, "sources:", sources);
+            sources.forEach((src) => {
+              newSocket.emit("metrics:subscribe", { source: src });
+            });
           } catch {}
         }
       }
@@ -181,16 +170,22 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Metrics error event handler
     newSocket.on("metrics:error", (err: { message: string }) => {
-      console.error("Metrics error:", err);
       setError(err.message);
     });
 
     // Real-time metrics updates
     // Live streaming updates for individual sources (suppressed in history mode).
     newSocket.on("metrics-update", (data: MetricsResponse) => {
-      // In history mode, suppress logs and updates entirely
+      // In history mode, suppress updates entirely
       if (!liveEnabledRef.current) return;
-      console.log("Received real-time metrics update:", data);
+
+      console.log("🔄 [WebSocket] Received metrics-update event:", {
+        source: data.source,
+        status: (data.data as any)?.status,
+        timestamp: data.updatedAt || data.timestamp,
+        hasMemory: !!(data.data as any)?.results?.memory,
+        memoryUsage: (data.data as any)?.results?.memory?.usage_percent
+      });
 
       // If the data has a source, update the metrics for that source
       if (data.source) {
@@ -206,6 +201,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         }
         // Update the last update time
         setLastUpdate(new Date());
+        console.log("✅ [WebSocket] Updated metrics state for:", data.source);
       }
     });
 
@@ -218,11 +214,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       errorCode?: string;
       timestamp: string;
     }) => {
-      // Always process error events, but only log in live mode
-      if (liveEnabledRef.current) {
-        console.log("Received metrics error:", data);
-      }
-
       // Get previous data for this source to preserve stats
       const previousData = metrics[data.source] as any || {};
       
@@ -293,14 +284,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         }>;
         count: number;
       }) => {
-        console.log("Received history data:", {
-          api: payload.api,
-          source: payload.source,
-          count: payload.count,
-          itemsLength: payload.items?.length,
-          items: payload.items,
-        });
-
         // Merge new history data with existing data, avoiding duplicates
         setHistory((prevHistory) => {
           const newItems = payload.items.map((it) => ({
@@ -356,7 +339,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   // Subscribe to metrics for a given source.
   const subscribeToSource = (source: string) => {
     if (socket && isConnected) {
-      console.log(`Subscribing to metrics for source: ${source}`);
       socket.emit("metrics:subscribe", { source });
     }
   };
@@ -364,7 +346,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   // Unsubscribe from metrics for a given source.
   const unsubscribeFromSource = (source: string) => {
     if (socket && isConnected) {
-      console.log(`Unsubscribing from metrics for source: ${source}`);
       socket.emit("metrics:unsubscribe", { source });
     }
   };
@@ -373,11 +354,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const getInitialData = (source?: string) => {
     // If the socket is connected, emit the request to get the initial data
     if (socket && isConnected) {
-      console.log(
-        `Requesting initial data${
-          source ? ` for source: ${source}` : " for all sources"
-        }`
-      );
       // Emit the request to get the initial data
       socket.emit("metrics:get", source ? { source } : {});
     }
@@ -394,14 +370,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     if (socket && isConnected) {
       // Clear existing history when making a new request to avoid mixing time ranges
       setHistory([]);
-      console.log("Cleared existing history for new request");
       // Emit the request to get the history data
       socket.emit("metrics:getHistory", params || {});
-    } else {
-      console.warn("Cannot request history: socket not connected", {
-        socketExists: !!socket,
-        isConnected,
-      });
     }
   };
 
