@@ -108,11 +108,15 @@ export class ApiPollerService {
 
   private async pollOnce(api: ExternalApi) {
     try {
+      console.log(`🔄 [Poller] Polling ${api.source}...`);
+
       // Generate fake data instead of making HTTP request
       const fakeData = generateFakeMetrics(api.source);
       const json = JSON.stringify(fakeData);
       // hash the data
       const hash = crypto.createHash('sha1').update(json).digest('hex');
+
+      console.log(`🔍 [Poller] ${api.source} - New hash: ${hash.substring(0, 8)}`);
 
       // check if the data has changed
       const existing = await MetricLatest.findOne({
@@ -121,11 +125,17 @@ export class ApiPollerService {
       })
         .select('hash')
         .lean();
+
+      console.log(`🔍 [Poller] ${api.source} - Old hash: ${existing?.hash?.substring(0, 8) || 'none'}`);
+
       // if the data has not changed, return
       if (existing?.hash === hash) {
+        console.log(`⏭️  [Poller] ${api.source} - Hash unchanged, skipping emit`);
         log.debug(`${api.name}/${api.source} hash unchanged (${hash.substring(0, 8)}...)`);
         return; // no change
       }
+
+      console.log(`✅ [Poller] ${api.source} - Hash changed! Updating DB...`);
 
       // upsert latest & append history
       const latestResult = await MetricLatest.updateOne(
@@ -140,19 +150,26 @@ export class ApiPollerService {
         data: fakeData,
         hash,
       });
-      
+
       // log the change to the database
       log.info(`${api.name}/${api.source} changed (db updated) - hash: ${hash.substring(0, 8)}...`);
 
       /* ---------- optional direct emit ---------- */
       // emit the change to the websocket
       if (this.directEmit && this.io) {
+        console.log(`📡 [Poller] ${api.source} - Emitting to room: metrics:${api.name}:${api.source}`);
+        console.log(`📡 [Poller] ${api.source} - Connected sockets: ${this.io.sockets.sockets.size}`);
+
         this.io.to(`metrics:${api.name}:${api.source}`).emit('metrics-update', {
           api: api.name,
           source: api.source,
           data: fakeData,
           timestamp: new Date().toISOString(),
         });
+
+        console.log(`✅ [Poller] ${api.source} - Emitted metrics-update event`);
+      } else {
+        console.log(`⚠️  [Poller] ${api.source} - NOT emitting (directEmit: ${this.directEmit}, io: ${!!this.io})`);
       }
     } catch (err: any) {
       log.error(
