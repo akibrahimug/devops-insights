@@ -10,7 +10,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useHeader } from "@/app/contexts/HeaderContext";
 import { useWebSocket } from "@/app/contexts/WebSocketContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   formatRegionName,
   getServerHealthStatus,
@@ -181,6 +181,7 @@ export default function RegionDetailPage() {
           data,
           health,
         });
+        setLastUpdated(new Date());
       }
     }
   }, [metrics, params.region]);
@@ -272,6 +273,93 @@ export default function RegionDetailPage() {
       timeRange
     )[params.region as string] || [];
 
+  // Generate mock DevOps data for latest mode (updates when lastUpdated changes)
+  const memoryData = useMemo(() => {
+    if (!region) return null;
+    const baseUsage = 55 + Math.random() * 30;
+    return {
+      total: 32,
+      used: Math.round(32 * (baseUsage / 100)),
+      available: Math.round(32 * (1 - baseUsage / 100)),
+      usage_percent: Math.round(baseUsage)
+    };
+  }, [region, lastUpdated]);
+
+  const diskData = useMemo(() => {
+    if (!region) return null;
+    const baseUsage = 40 + Math.random() * 40;
+    return {
+      total: 500,
+      used: Math.round(500 * (baseUsage / 100)),
+      available: Math.round(500 * (1 - baseUsage / 100)),
+      usage_percent: Math.round(baseUsage),
+      io_read: Math.round(20 + Math.random() * 40),
+      io_write: Math.round(10 + Math.random() * 30)
+    };
+  }, [region, lastUpdated]);
+
+  const networkData = useMemo(() => {
+    if (!region) return null;
+    return {
+      bandwidth_in: Math.round(600 + Math.random() * 800),
+      bandwidth_out: Math.round(400 + Math.random() * 600),
+      latency: Math.round(35 + Math.random() * 40),
+      packet_loss: Math.max(0.01, Math.random() * 0.5)
+    };
+  }, [region, lastUpdated]);
+
+  const performanceData = useMemo(() => {
+    if (!region) return null;
+    const uptime = region.data.serverStatus === 'error' ? 90 + Math.random() * 5 : 97 + Math.random() * 2.5;
+    return {
+      response_times: {
+        p50: Math.round(80 + Math.random() * 120),
+        p95: Math.round(200 + Math.random() * 400),
+        p99: Math.round(500 + Math.random() * 800)
+      },
+      error_rate: region.data.serverStatus === 'error' ? Math.random() * 5 + 3 : Math.random() * 2,
+      requests_per_second: Math.round(500 + Math.random() * 1500),
+      uptime_percent: uptime
+    };
+  }, [region, lastUpdated]);
+
+  const securityData = useMemo(() => {
+    if (!region) return null;
+    return {
+      failed_logins: Math.round(5 + Math.random() * 30),
+      blocked_ips: Math.round(1 + Math.random() * 10),
+      ssl_cert_days: Math.round(60 + Math.random() * 120),
+      vulnerability_score: Math.round(10 + Math.random() * 40)
+    };
+  }, [region, lastUpdated]);
+
+  const deploymentData = useMemo(() => {
+    if (!region) return null;
+    const rand = Math.random();
+    let buildStatus: 'success' | 'failed' | 'pending' = 'success';
+    if (region.data.serverStatus === 'error') buildStatus = 'failed';
+    else if (rand < 0.85) buildStatus = 'success';
+    else if (rand < 0.93) buildStatus = 'failed';
+    else buildStatus = 'pending';
+
+    return {
+      last_deployment: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+      build_status: buildStatus,
+      version_number: region.data.version || 'v1.2.3',
+      rollback_ready: Math.random() > 0.3
+    };
+  }, [region, lastUpdated]);
+
+  const alertsData = useMemo(() => {
+    if (!region) return null;
+    return {
+      active_alerts: Math.round(2 + Math.random() * 8),
+      critical_alerts: region.data.serverStatus === 'error' ? 1 : (Math.random() > 0.8 ? 1 : 0),
+      escalated_alerts: region.data.serverStatus === 'error' ? 1 : (Math.random() > 0.9 ? 1 : 0),
+      alert_response_time: Math.round(5 + Math.random() * 15)
+    };
+  }, [region, lastUpdated]);
+
   if (!region) {
     return <RegionDetailSkeleton />;
   }
@@ -333,98 +421,65 @@ export default function RegionDetailPage() {
           />
         ) : (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <MemoryUsageCard regions={[{
-                name: region.name,
-                displayName: region.displayName,
-                memory: {
-                  total: 32,
-                  used: Math.round(32 * ((55 + Math.random() * 30) / 100)),
-                  available: Math.round(32 * (1 - (55 + Math.random() * 30) / 100)),
-                  usage_percent: Math.round(55 + Math.random() * 30)
-                },
-                status: region.data.serverStatus
-              }]} />
-              <DiskUsageCard regions={[{
-                name: region.name,
-                displayName: region.displayName,
-                disk: {
-                  total: 500,
-                  used: Math.round(500 * ((40 + Math.random() * 40) / 100)),
-                  available: Math.round(500 * (1 - (40 + Math.random() * 40) / 100)),
-                  usage_percent: Math.round(40 + Math.random() * 40),
-                  io_read: Math.round(20 + Math.random() * 40),
-                  io_write: Math.round(10 + Math.random() * 30)
-                },
-                status: region.data.serverStatus
-              }]} />
-            </div>
+            {memoryData && diskData && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <MemoryUsageCard regions={[{
+                  name: region.name,
+                  displayName: region.displayName,
+                  memory: memoryData,
+                  status: region.data.serverStatus
+                }]} />
+                <DiskUsageCard regions={[{
+                  name: region.name,
+                  displayName: region.displayName,
+                  disk: diskData,
+                  status: region.data.serverStatus
+                }]} />
+              </div>
+            )}
 
-            <NetworkPerformanceCard regions={[{
-              name: region.name,
-              displayName: region.displayName,
-              network: {
-                bandwidth_in: Math.round(600 + Math.random() * 800),
-                bandwidth_out: Math.round(400 + Math.random() * 600),
-                latency: Math.round(35 + Math.random() * 40),
-                packet_loss: Math.max(0.01, Math.random() * 0.5)
-              },
-              status: region.data.serverStatus
-            }]} />
+            {networkData && (
+              <NetworkPerformanceCard regions={[{
+                name: region.name,
+                displayName: region.displayName,
+                network: networkData,
+                status: region.data.serverStatus
+              }]} />
+            )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <PerformanceAnalyticsCard regions={[{
-                name: region.name,
-                displayName: region.displayName,
-                performance: {
-                  response_times: {
-                    p50: Math.round(80 + Math.random() * 120),
-                    p95: Math.round(200 + Math.random() * 400),
-                    p99: Math.round(500 + Math.random() * 800)
-                  },
-                  error_rate: region.data.serverStatus === 'error' ? Math.random() * 5 + 3 : Math.random() * 2,
-                  requests_per_second: Math.round(500 + Math.random() * 1500),
-                  uptime_percent: region.data.serverStatus === 'error' ? 90 + Math.random() * 5 : 97 + Math.random() * 2.5
-                },
-                status: region.data.serverStatus
-              }]} />
-              <SecurityMonitoringCard regions={[{
-                name: region.name,
-                displayName: region.displayName,
-                security: {
-                  failed_logins: Math.round(5 + Math.random() * 30),
-                  blocked_ips: Math.round(1 + Math.random() * 10),
-                  ssl_cert_days: Math.round(60 + Math.random() * 120),
-                  vulnerability_score: Math.round(10 + Math.random() * 40)
-                },
-                status: region.data.serverStatus
-              }]} />
-            </div>
+            {performanceData && securityData && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <PerformanceAnalyticsCard regions={[{
+                  name: region.name,
+                  displayName: region.displayName,
+                  performance: performanceData,
+                  status: region.data.serverStatus
+                }]} />
+                <SecurityMonitoringCard regions={[{
+                  name: region.name,
+                  displayName: region.displayName,
+                  security: securityData,
+                  status: region.data.serverStatus
+                }]} />
+              </div>
+            )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <DeploymentStatusCard regions={[{
-                name: region.name,
-                displayName: region.displayName,
-                deployment: {
-                  last_deployment: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-                  build_status: region.data.serverStatus === 'error' ? 'failed' as const : (Math.random() < 0.85 ? 'success' as const : (Math.random() < 0.93 ? 'failed' as const : 'pending' as const)),
-                  version_number: region.data.version || 'v1.2.3',
-                  rollback_ready: Math.random() > 0.3
-                },
-                status: region.data.serverStatus
-              }]} />
-              <AlertsManagementCard regions={[{
-                name: region.name,
-                displayName: region.displayName,
-                alerts: {
-                  active_alerts: Math.round(2 + Math.random() * 8),
-                  critical_alerts: region.data.serverStatus === 'error' ? 1 : (Math.random() > 0.8 ? 1 : 0),
-                  escalated_alerts: region.data.serverStatus === 'error' ? 1 : (Math.random() > 0.9 ? 1 : 0),
-                  alert_response_time: Math.round(5 + Math.random() * 15)
-                },
-                status: region.data.serverStatus
-              }]} />
-            </div>
+            {deploymentData && alertsData && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <DeploymentStatusCard regions={[{
+                  name: region.name,
+                  displayName: region.displayName,
+                  deployment: deploymentData,
+                  status: region.data.serverStatus
+                }]} />
+                <AlertsManagementCard regions={[{
+                  name: region.name,
+                  displayName: region.displayName,
+                  alerts: alertsData,
+                  status: region.data.serverStatus
+                }]} />
+              </div>
+            )}
           </>
         )}
       </div>
