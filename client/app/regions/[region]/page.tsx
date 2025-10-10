@@ -273,92 +273,89 @@ export default function RegionDetailPage() {
       timeRange
     )[params.region as string] || [];
 
-  // Generate mock DevOps data for latest mode (updates when lastUpdated changes)
+  // Extract real memory data from WebSocket (updates when region changes)
   const memoryData = useMemo(() => {
     if (!region) return null;
-    const baseUsage = 55 + Math.random() * 30;
+    const memData = (region.data as any)?.results?.memory;
     return {
-      total: 32,
-      used: Math.round(32 * (baseUsage / 100)),
-      available: Math.round(32 * (1 - baseUsage / 100)),
-      usage_percent: Math.round(baseUsage)
+      total: memData?.total || 8,
+      used: memData?.used || 0,
+      available: memData?.available || 8,
+      usage_percent: memData?.usage_percent || 0
     };
-  }, [region, lastUpdated]);
+  }, [region]);
 
   const diskData = useMemo(() => {
     if (!region) return null;
-    const baseUsage = 40 + Math.random() * 40;
+    const storageData = (region.data as any)?.results?.storage;
     return {
       total: 500,
-      used: Math.round(500 * (baseUsage / 100)),
-      available: Math.round(500 * (1 - baseUsage / 100)),
-      usage_percent: Math.round(baseUsage),
-      io_read: Math.round(20 + Math.random() * 40),
-      io_write: Math.round(10 + Math.random() * 30)
+      used: storageData?.disk_usage_percent ? Math.round(500 * (storageData.disk_usage_percent / 100)) : 0,
+      available: storageData?.disk_usage_percent ? Math.round(500 * (1 - storageData.disk_usage_percent / 100)) : 500,
+      usage_percent: storageData?.disk_usage_percent || 0,
+      io_read: storageData?.read_ops_per_sec || 0,
+      io_write: storageData?.write_ops_per_sec || 0
     };
-  }, [region, lastUpdated]);
+  }, [region]);
 
   const networkData = useMemo(() => {
     if (!region) return null;
+    const netData = (region.data as any)?.results?.network;
     return {
-      bandwidth_in: Math.round(600 + Math.random() * 800),
-      bandwidth_out: Math.round(400 + Math.random() * 600),
-      latency: Math.round(35 + Math.random() * 40),
-      packet_loss: Math.max(0.01, Math.random() * 0.5)
+      bandwidth_in: netData?.bytes_in_per_sec ? Math.round(netData.bytes_in_per_sec / 1000) : 0,
+      bandwidth_out: netData?.bytes_out_per_sec ? Math.round(netData.bytes_out_per_sec / 1000) : 0,
+      latency: netData?.latency_ms || 0,
+      packet_loss: netData?.packets_dropped || 0
     };
-  }, [region, lastUpdated]);
+  }, [region]);
 
   const performanceData = useMemo(() => {
     if (!region) return null;
-    const uptime = region.data.serverStatus === 'error' ? 90 + Math.random() * 5 : 97 + Math.random() * 2.5;
+    const perfData = (region.data as any)?.results?.performance;
     return {
       response_times: {
-        p50: Math.round(80 + Math.random() * 120),
-        p95: Math.round(200 + Math.random() * 400),
-        p99: Math.round(500 + Math.random() * 800)
+        p50: perfData?.response_times?.p50 || 0,
+        p95: perfData?.response_times?.p95 || 0,
+        p99: perfData?.response_times?.p99 || 0
       },
-      error_rate: region.data.serverStatus === 'error' ? Math.random() * 5 + 3 : Math.random() * 2,
-      requests_per_second: Math.round(500 + Math.random() * 1500),
-      uptime_percent: uptime
+      error_rate: perfData?.error_rate || 0,
+      requests_per_second: perfData?.requests_per_second || 0,
+      uptime_percent: perfData?.uptime_percent || 0
     };
-  }, [region, lastUpdated]);
+  }, [region]);
 
   const securityData = useMemo(() => {
     if (!region) return null;
+    const secData = (region.data as any)?.results?.security;
     return {
-      failed_logins: Math.round(5 + Math.random() * 30),
-      blocked_ips: Math.round(1 + Math.random() * 10),
-      ssl_cert_days: Math.round(60 + Math.random() * 120),
-      vulnerability_score: Math.round(10 + Math.random() * 40)
+      failed_logins: secData?.failed_logins || 0,
+      blocked_ips: secData?.blocked_ips || 0,
+      ssl_cert_days: secData?.ssl_cert_days || 0,
+      vulnerability_score: secData?.vulnerability_score || 0
     };
-  }, [region, lastUpdated]);
+  }, [region]);
 
   const deploymentData = useMemo(() => {
     if (!region) return null;
-    const rand = Math.random();
-    let buildStatus: 'success' | 'failed' | 'pending' = 'success';
-    if (region.data.serverStatus === 'error') buildStatus = 'failed';
-    else if (rand < 0.85) buildStatus = 'success';
-    else if (rand < 0.93) buildStatus = 'failed';
-    else buildStatus = 'pending';
-
+    const deplData = (region.data as any)?.results?.deployment;
     return {
-      last_deployment: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-      build_status: buildStatus,
-      version_number: region.data.version || 'v1.2.3',
-      rollback_ready: Math.random() > 0.3
+      last_deployment: deplData?.last_deployment || new Date().toISOString(),
+      build_status: deplData?.build_status || 'success',
+      version_number: deplData?.version_number || region.data.version || 'v1.0.0',
+      rollback_ready: deplData?.rollback_ready !== undefined ? deplData.rollback_ready : true
     };
-  }, [region, lastUpdated]);
+  }, [region]);
 
   const alertsData = useMemo(() => {
     if (!region) return null;
+    const alertData = (region.data as any)?.results?.alerts;
     return {
-      active_alerts: Math.round(2 + Math.random() * 8),
-      critical_alerts: region.data.serverStatus === 'error' ? 1 : (Math.random() > 0.8 ? 1 : 0),
-      escalated_alerts: region.data.serverStatus === 'error' ? 1 : (Math.random() > 0.9 ? 1 : 0),
-      alert_response_time: Math.round(5 + Math.random() * 15)
+      active_alerts: alertData?.active_alerts || 0,
+      critical_alerts: alertData?.critical_alerts || 0,
+      escalated_alerts: alertData?.escalated_alerts || 0,
+      alert_response_time: alertData?.alert_response_time || 0
     };
-  }, [region, lastUpdated]);
+  }, [region]);
 
   if (!region) {
     return <RegionDetailSkeleton />;
