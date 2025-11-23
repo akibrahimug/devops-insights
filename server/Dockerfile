@@ -26,9 +26,6 @@ RUN npx tsc-alias
 # Production stage - multi-stage build for smaller image
 FROM node:18-alpine AS production
 
-# Install PM2 globally for production process management
-RUN npm install -g pm2
-
 # Set working directory
 WORKDIR /app
 
