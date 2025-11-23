@@ -5,7 +5,7 @@
   "description": "This is the backend of the devops insights dashboard",
   "main": "dist/app.js",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node dist/app.js",
+    "start": "node dist/app.js",
     "test": "jest --coverage=true -w=1 --forceExit --detectOpenHandles --watchAll=false",
     "dev": "nodemon --exec ts-node -r tsconfig-paths/register src/app.ts | ./node_modules/.bin/bunyan",
     "lint:check": "eslint 'src/**/*.ts'",
