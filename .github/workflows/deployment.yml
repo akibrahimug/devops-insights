@@ -70,4 +70,4 @@ jobs:
             --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             --set-env-vars="EXTERNAL_API_NAME=${{ secrets.EXTERNAL_API_NAME }}" \
             --set-env-vars="CLIENT_URL=*" \
-            --set-env-vars="REDIS_HOST=${{ secrets.REDIS_HOST }}"
+            --set-env-vars="REDIS_REQUIRED=false"
