@@ -33,7 +33,7 @@ docker compose up -d mongo
 docker exec -it mongo-rs mongosh --eval "rs.initiate()"
 ```
 
-If the DB is a standalone (no replica set), the server auto-falls back to "directEmit" mode where the poller emits to Socket.IO directly instead of relying on change streams — see `setupServer.ts:51-57`.
+If the DB is a standalone (no replica set), the server auto-falls back to "directEmit" mode where the poller emits to Socket.IO directly instead of relying on change streams.
 
 ### Frontend (`client/`)
 
@@ -57,20 +57,39 @@ Express handles only system endpoints; **all dashboard data flows over Socket.IO
 
 WebSocket protocol (client ⇆ server):
 
-- `metrics:get { source? }` → server replies `metrics:data` (single-source or all-sources shape varies on whether `source` was passed; see `setupServer.ts:146-197`).
+- `metrics:get { source? }` → server replies `metrics:data` (single-source or all-sources shape varies on whether `source` was passed; see `setupServer.ts`).
 - `metrics:subscribe { source }` / `metrics:unsubscribe { source }` — joins/leaves the per-region room `metrics:<apiName>:<source>`.
 - `metrics:getHistory { source?, from?, to?, limit? }` → `metrics:history`.
 - Live broadcasts arrive as `metrics-update` (and `metrics-error` for region failures).
-- Errors come back on `metrics:error`.
+- Errors come back on `metrics:error`. **Retryable errors include `retryAfterMs`** (e.g. `{ message: "No data yet", retryAfterMs: 2000 }`). The client re-emits `metrics:get` after that delay.
 
 Allowed `source` values are loaded from `server/src/static/api-regions.json` (currently 6 regions). The client mirrors this list inline in `app/page.tsx` — keep them in sync.
 
+### Cold-start path and the in-memory cache
+
+First-paint resilience is a deliberate part of the design — see `server/src/services/metrics-cache.ts`. The cache is a process-local snapshot of the latest payload per source. It exists because:
+
+1. **Mongo Atlas M0 (free tier) sleeps** after ~60min idle and takes 30–90s to wake. Reading from Mongo on first request would mean the dashboard hangs that whole time.
+2. **Cloud Run scales to zero**, so a cold revision needs to serve data while Mongo is still warming up.
+
+The cache is fed by the poller *before* the Mongo write, so even if Atlas is asleep the cache fills from generated data and clients render in seconds.
+
+Startup sequence in `setupServer.start()`:
+1. `mongoose.connect()`
+2. Create HTTP + Socket.IO server
+3. Wire change streams if available (with a 1.5s timeout — Atlas mid-wake can hang `replSetGetStatus`); otherwise enable `directEmit`
+4. `await Promise.race([ poller.startPolling() + metricsCache.whenReady(), 8s timeout ])` — gate `listen()` on the cache being warm so the first connection always gets data
+5. `applicationRoutes()` → `listen()`
+
+If the 8s timeout fires before the cache is ready, the server still listens; the client retries with backoff (see below).
+
 ### Data flow (backend)
 
-1. **`api-poller.ts`** polls `https://data--<source>.<apiName>.io/status?stats=1` every 30s for each region. `apiName` comes from `EXTERNAL_API_NAME` env var (lowercased). Each payload is SHA1-hashed; on hash change it upserts `metrics_latest` and appends to `metrics_history`.
-2. **`change-streams.ts`** watches `metrics_latest` via Mongo change streams (requires replica set) and emits `metrics-update` to the per-region Socket.IO room. If change streams aren't available, the poller emits directly (`enableDirectEmit()`).
-3. **Mongo models** (`shared/services/db/models/Metric.models.ts`): `MetricLatest` (one doc per `(api, source)`, unique compound index) and `MetricHistory` (append-only, 7-day TTL on `createdAt`).
-4. **Multi-instance leadership**: when `REDIS_HOST` is set, `RedisLeaderLock` (`shared/services/redis/leader.lock.ts`) ensures only one instance polls at a time. Socket.IO also wires the Redis adapter for cross-instance broadcasting (`setupServer.ts:104-116`). Without Redis, the server runs single-instance.
+1. **`api-poller.ts`** — `pollOnce(source)` generates a fake payload via `generateFakeMetrics()` (real HTTP polling is intentionally disabled — fake data keeps cold start cheap), populates `metricsCache.set(source, ...)` first, then attempts a SHA1-keyed Mongo upsert. The Mongo write is wrapped in try/catch so an asleep Atlas does not break the cache or live updates. `lastEmittedHash` per source ensures `directEmit` still broadcasts on hash change even when Mongo is unreachable.
+2. **`change-streams.ts`** watches `metrics_latest` via Mongo change streams (requires replica set) and emits `metrics-update` to the per-region Socket.IO room. If change streams aren't available, `directEmit` (in the poller) takes over.
+3. **`metrics-cache.ts`** — singleton with `set`, `get`, `getAll`, `isReady`, `whenReady`. The `metrics:get` handler reads from this cache first; only if the cache is empty does it fall back to Mongo.
+4. **Mongo models** (`shared/services/db/models/Metric.models.ts`): `MetricLatest` (one doc per `(api, source)`, unique compound index) and `MetricHistory` (append-only, 7-day TTL on `createdAt`).
+5. **Multi-instance leadership**: when `REDIS_HOST` is set, `RedisLeaderLock` (`shared/services/redis/leader.lock.ts`) ensures only one instance polls at a time. Socket.IO also wires the Redis adapter for cross-instance broadcasting. Without Redis, the server runs single-instance — the prod Cloud Run config does NOT set `REDIS_HOST`.
 
 ### Frontend state model
 
@@ -80,6 +99,7 @@ Allowed `source` values are loaded from `server/src/static/api-regions.json` (cu
 - Tracks `metrics` (current snapshot), `latestTimestamps`, `history`, `isConnected`, and a `liveEnabled` flag.
 - Auto-subscribes to every source returned by `metrics:get` when live mode is on; unsubscribes from all when entering history mode.
 - Uses a `liveEnabledRef` so socket event handlers (closed over the initial state) can read the latest flag — when adding new handlers, follow the same ref pattern.
+- **Retries `metrics:get` with exponential backoff** (1s → 2s → 4s → 8s, max 5 attempts) when the server emits `metrics:error` with a retryable message ("No data yet", "Failed to fetch metrics") or a `retryAfterMs` hint. Tracked via `initialRetryRef`. Cancelled on first `metrics:data` or `metrics-update`. Reset on every `connect`.
 
 `HeaderContext` is configured by each page via `useHeader().setHeader(...)` in an effect; the global `HeaderMount` renders it. Pages own their auto-refresh / live-vs-history toggle and pass callbacks up.
 
@@ -87,10 +107,22 @@ Region drill-down lives at `app/regions/[region]/page.tsx`.
 
 ### Config and validation
 
-`server/src/config.ts` is a singleton with `validate()`. **Note**: `validate()` iterates `Object.keys(this)` but destructures into `[key, value]` — this is a bug (the loop body never sees real values), so missing-env-var validation does not actually throw. Treat env vars as optional defaults rather than relying on validation.
-
-Required-ish env vars: `DATABASE_URL`, `EXTERNAL_API_NAME`, `PORT` (default 5000), `REDIS_HOST` (optional, enables leader election + adapter), `CLIENT_URL`, `NODE_ENV`.
+`server/src/config.ts` is a singleton with `validate()`. Required: `DATABASE_URL`. Recommended (warned, not thrown): `EXTERNAL_API_NAME`. Optional: `REDIS_HOST`, `CLIENT_URL`, `PORT` (default 5000), `NODE_ENV`.
 
 ## Deployment
 
-GitHub Actions (`.github/workflows/deployment.yml`) builds `server/Dockerfile` on every push to `master` and deploys to Google Cloud Run (`devops-insights` service). The Dockerfile is multi-stage and runs as a non-root user; `yarn start` runs `node dist/app.js` directly (the README mentions PM2 but the Dockerfile does not use it). Frontend deploys via Vercel (see `.vercel/`).
+GitHub Actions (`.github/workflows/deployment.yml`) builds `server/Dockerfile` on every push to `master` and deploys to Google Cloud Run (`devops-insights` service). Key flags: `--cpu=1 --cpu-boost --memory=512Mi --concurrency=80 --min-instances=0 --timeout=300`. `--cpu-boost` is free and shortens cold start by ~30–50%. `--min-instances=0` keeps the free tier — bump to `1` if cold starts ever become unacceptable (~$5–15/mo).
+
+The Dockerfile is multi-stage on `node:20-alpine`, runs as a non-root user, and starts via `node dist/app.js` directly (no PM2 — Cloud Run restarts the container on crash, making PM2 redundant).
+
+Frontend deploys via Vercel (see `.vercel/`).
+
+### Atlas M0 keep-warm
+
+The free Mongo Atlas M0 cluster sleeps after ~60 min idle. To prevent the resulting 30–90s wake-up cost, set up a Cloud Scheduler job hitting `/api/v1/health` every 5 minutes — the health endpoint pings Mongo, keeping the connection pool warm. Free tier covers it (3 jobs / no incremental cost at this cadence).
+
+## See also
+
+- `MIGRATION.md` — detailed write-up of the cold-start fix (what changed, why, how to verify).
+- `server/MANIFESTO.md` — original architecture decisions.
+- `server/SCALING.md` and `client/SCALING.md` — scaling roadmap and known limitations.

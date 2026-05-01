@@ -17,8 +17,8 @@ The DevOps Insights Dashboard serves as a centralized monitoring solution that:
 
 ```
 devops-insights/
-├── client/          # Frontend dashboard (future implementation)
-└── server/          # Node.js backend with TypeScript
+├── client/          # Next.js 16 + React 19 dashboard (Vercel)
+└── server/          # Node.js + TypeScript backend (Cloud Run)
 ```
 
 ### Backend Architecture
@@ -34,28 +34,29 @@ The backend follows a **hybrid communication strategy**:
 
 #### Core Services
 
-- **API Poller**: Intelligent polling service that monitors external APIs, detects changes using SHA1 hashing, and updates the database
-- **Change Streams**: MongoDB change stream monitoring that automatically broadcasts database updates to WebSocket clients
-- **WebSocket Server**: Real-time communication hub managing client connections and room-based subscriptions
+- **API Poller**: Polls each region every 30s, hashes the payload, and writes changes to Mongo. Populates an in-memory cache *before* the DB write so first-paint never depends on Mongo being awake.
+- **Metrics Cache**: Process-local snapshot per region. Backs the `metrics:get` socket handler so initial requests return in microseconds, not after a Mongo round-trip. The HTTP server only begins listening once the cache is warm (with an 8s safety timeout).
+- **Change Streams**: MongoDB change stream monitoring that broadcasts database updates to WebSocket clients. Falls back to direct poller emits if change streams are unavailable.
+- **WebSocket Server**: Real-time communication hub managing client connections and per-region room subscriptions. Retryable error responses include a `retryAfterMs` hint so the client can back off cleanly during cold start.
 
 #### Data Flow
 
-1. **API Polling** → External APIs polled at configurable intervals
-2. **Change Detection** → SHA1 hashing identifies data modifications
-3. **Database Update** → Modified data stored in MongoDB (latest + history)
-4. **Change Stream** → MongoDB change events trigger automatic notifications
-5. **WebSocket Broadcast** → Real-time updates sent to subscribed dashboard clients
+1. **API Polling** → Each region polled every 30s
+2. **Cache First** → In-memory cache updated before any DB I/O, so the dashboard renders even if Atlas is asleep
+3. **Change Detection** → SHA1 hashing identifies data modifications
+4. **Database Update** → Modified data persisted to MongoDB (latest + 7-day history TTL); failures swallowed so polling continues
+5. **Change Stream / Direct Emit** → MongoDB change events (or direct emit fallback) trigger room broadcasts
+6. **WebSocket Broadcast** → Real-time updates sent to subscribed dashboard clients
 
 ### Technology Stack
 
 #### Backend
 
-- **Node.js** with **TypeScript** for type-safe development
+- **Node.js 20** + **TypeScript** for type-safe development
 - **Express.js** for HTTP server and system endpoints
 - **Socket.IO** for WebSocket communication and room management
 - **MongoDB** with Mongoose ODM for data persistence
-- **Redis** for caching and distributed messaging (optional)
-- **PM2** for production process management
+- **Redis** for cross-instance leader election and Socket.IO adapter (optional — single-instance Cloud Run runs without it)
 
 #### DevOps & Testing
 
@@ -146,7 +147,7 @@ socket.on("metrics-update", (update) => {
 - `npm run build` - Build TypeScript to JavaScript
 - `npm run test` - Run tests with coverage
 - `npm run lint:fix` - Fix linting issues
-- `npm run start` - Production server with PM2
+- `npm run start` - Production server (`node dist/app.js`)
 
 ### Testing
 
@@ -170,12 +171,25 @@ The platform monitors metrics across 6 geographical regions:
 
 The application is production-ready with:
 
-- PM2 process management for reliability
-- Docker containerization support
-- Comprehensive health monitoring
-- Structured logging with correlation IDs
-- Graceful shutdown handling
+- Docker container deployed to **Google Cloud Run** (free tier; `--min-instances=0`, `--cpu-boost`, `--memory=512Mi`)
+- Auto-deploy via GitHub Actions on push to `master` (`.github/workflows/deployment.yml`)
+- Comprehensive health monitoring (`/api/v1/health` also pings Mongo so a Cloud Scheduler keep-warm cron can wake Atlas M0)
+- Structured JSON logging via Bunyan
+- Graceful shutdown on SIGINT/SIGTERM
 - Environment-based configuration
+
+### Cold-start performance
+
+The dashboard is engineered to render quickly even on a cold Cloud Run revision with a sleeping Mongo Atlas M0 cluster. Time-to-first-paint targets:
+
+| Scenario | Target |
+|---|---|
+| Container warm, Atlas warm | 1–2s |
+| Container cold, Atlas warm | 4–7s |
+| Container cold, Atlas asleep (worst case) | 8–15s |
+| With keep-warm cron (Atlas always warm) | 4–7s consistently |
+
+See [`MIGRATION.md`](MIGRATION.md) for the architecture decisions, the keep-warm cron setup, and verification steps.
 
 ## License
 

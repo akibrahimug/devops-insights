@@ -11,21 +11,24 @@ The DevOps Insights Dashboard is built with a hybrid architecture that combines 
 - **Real-time Data Streaming**: WebSocket-based live updates for instant dashboard synchronization
 - **Multi-region Support**: Monitor metrics across 6 geographical regions (US East/West, EU West/Central, South America East, Asia-Pacific Southeast)
 - **Hybrid Architecture**: Express.js for system endpoints + WebSockets for application logic
+- **In-Memory Cache**: Per-region snapshot fed by the poller, used to serve `metrics:get` without a Mongo round-trip and to keep the dashboard responsive while Atlas wakes
+- **Cold-Start Resilient**: `listen()` is gated on a warm cache (with an 8s timeout); the client retries with exponential backoff on transient errors
 - **MongoDB Integration**: Robust data persistence with change stream monitoring
-- **Redis Support**: Built-in caching and pub/sub messaging capabilities
+- **Redis Support**: Optional Socket.IO adapter and leader election for multi-instance deployments
 - **TypeScript**: Full type safety and modern development experience
 - **Comprehensive Testing**: Jest-based testing framework with coverage reporting
-- **Production Ready**: PM2 process management and Docker containerization
+- **Production Ready**: Docker container deployed to Google Cloud Run (free tier compatible)
 
 ## 🏗️ Architecture
 
 ### Core Components
 
-- **Express.js Server**: Minimal HTTP endpoints for health checks, metrics, and system status
+- **Express.js Server**: Minimal HTTP endpoints for health checks (with Mongo ping), metrics-as-redirect, and system info
 - **WebSocket Server**: Primary communication layer for real-time dashboard updates
+- **In-Memory Metrics Cache** (`src/services/metrics-cache.ts`): Process-local singleton populated by the poller before any DB I/O. Serves `metrics:get` instantly and gates `listen()` via `whenReady()`
 - **MongoDB**: Document database for metric storage with change stream monitoring
-- **Redis**: Caching layer and message broker for distributed operations
-- **API Poller**: External API integration service with intelligent change detection
+- **Redis** (optional): Socket.IO adapter for cross-instance broadcast and leader election for the poller in multi-instance deployments
+- **API Poller** (`src/services/api-poller.ts`): Per-region polling, SHA1 change detection, cache-first then best-effort Mongo write
 
 ### Communication Strategy
 
@@ -43,12 +46,11 @@ The DevOps Insights Dashboard is built with a hybrid architecture that combines 
 
 ### Backend Technologies
 
-- **Node.js** with **TypeScript** for type-safe development
+- **Node.js 20 (alpine)** with **TypeScript** for type-safe development
 - **Express.js** for HTTP server and middleware
 - **Socket.IO** for WebSocket communication
 - **MongoDB** with Mongoose ODM for data persistence
-- **Redis** for caching and pub/sub messaging
-- **PM2** for production process management
+- **Redis** (optional) for Socket.IO adapter and leader election
 
 ### Development Tools
 
@@ -125,7 +127,7 @@ The server will start on `http://localhost:5000` with WebSocket support enabled.
 
 - `yarn dev` - Start development server with hot reload
 - `yarn build` - Build TypeScript to JavaScript
-- `yarn start` - Start production server with PM2
+- `yarn start` - Start production server (`node dist/app.js`)
 
 ### Code Quality
 
@@ -262,28 +264,44 @@ Maintains historical record of all metric changes:
 - MongoDB change streams automatically detect database modifications
 - Instant WebSocket broadcasts to subscribed clients
 - Region-specific room broadcasting for efficient data distribution
+- 1.5s timeout on `replSetGetStatus` so a mid-wake Atlas can't hang startup — falls back to direct emit
 
 ### API Polling Service
 
-- Intelligent polling with SHA1 hash-based change detection
-- Configurable polling intervals per region
-- Automatic fallback when change streams are unavailable
-- Error handling and retry logic for external API calls
+- 30s polling with SHA1 hash-based change detection
+- **Cache-first**: every poll updates the in-memory cache before attempting any Mongo write
+- Mongo write failures are swallowed (warn-logged) so a sleeping Atlas doesn't break live updates
+- `lastEmittedHash` per source ensures direct-emit broadcasts still fire on legitimate hash changes when Mongo is unreachable
+- Optional fake-data mode (default in this repo) keeps cold start cheap
 
 ### WebSocket Room Management
 
 - Clients subscribe to region-specific rooms (`metrics:api-name:region`)
 - Efficient data distribution only to interested subscribers
+- Retryable error responses include `retryAfterMs` so the client backs off cleanly
 - Automatic connection cleanup and error handling
 
 ## 🔄 Data Flow
 
-1. **API Polling**: External APIs polled at regular intervals
-2. **Change Detection**: SHA1 hashing identifies data modifications
-3. **Database Update**: Changed data stored in MongoDB collections
-4. **Change Stream**: MongoDB detects and publishes change events
-5. **WebSocket Broadcast**: Real-time updates sent to subscribed clients
+1. **API Polling**: Each region polled every 30s
+2. **Cache First**: In-memory cache populated before any DB I/O — first paint never blocks on Mongo
+3. **Change Detection**: SHA1 hashing identifies data modifications
+4. **Database Update**: Changed data persisted to MongoDB (best-effort; failures don't block)
+5. **Change Stream / Direct Emit**: MongoDB change events (or direct emit fallback) trigger room broadcasts
 6. **Client Update**: Dashboard receives and displays new data instantly
+
+## 🥶 Cold-Start Architecture
+
+The startup sequence in `setupServer.start()`:
+
+1. `mongoose.connect()` (with auto-reconnect listener registered)
+2. Create HTTP server + Socket.IO instance (wires Redis adapter if `REDIS_HOST` is set)
+3. Probe for change-stream support (1.5s timeout); fall back to direct-emit on failure
+4. `await Promise.race([ poller.startPolling() + metricsCache.whenReady(), 8s timeout ])`
+5. Register HTTP routes
+6. `listen()` — only after the cache is warm, so the first `metrics:get` always returns data
+
+Atlas M0 keep-warm: `/api/v1/health` pings Mongo, so a Cloud Scheduler job hitting it every 5 min keeps the cluster awake without changing application code. See [`MIGRATION.md`](../MIGRATION.md).
 
 ## 🐳 Docker Support
 
@@ -299,9 +317,10 @@ docker exec -it mongo-rs mongosh --eval "rs.initiate()"
 
 ### Production Deployment
 
-- Multi-stage Docker builds for optimized images
-- PM2 process management for reliability
-- Health check endpoints for container orchestration
+- Multi-stage `node:20-alpine` Docker build for small, fast-pulling images
+- Direct `node dist/app.js` startup (no PM2 wrapper — Cloud Run handles restarts)
+- Non-root user (`nodejs`)
+- Container `HEALTHCHECK` against `/api/v1/health`
 - Environment-based configuration
 
 ## 🧪 Testing
@@ -379,15 +398,14 @@ CLIENT_URL=https://your-dashboard-domain.com
 
 ### Process Management
 
-```bash
-# Start with PM2 (production)
-yarn build
-yarn start
+The container starts the app directly:
 
-# Monitor processes
-pm2 logs
-pm2 status
+```bash
+yarn build
+yarn start    # node dist/app.js
 ```
+
+On Google Cloud Run, the platform handles restarts and scaling. Cold start tuning lives in `.github/workflows/deployment.yml` (`--cpu-boost`, `--min-instances=0`, etc.).
 
 ## 📋 Development Roadmap
 
