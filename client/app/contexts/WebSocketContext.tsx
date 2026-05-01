@@ -91,10 +91,27 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [liveEnabled, setLiveEnabled] = useState<boolean>(true);
   const liveEnabledRef = useRef<boolean>(liveEnabled);
 
+  // Retry state for the initial metrics:get request when the server is still
+  // warming up (cold-start race). Backoff: 1s, 2s, 4s, 8s, 8s. Cancelled on
+  // first metrics:data or metrics-update.
+  const initialRetryRef = useRef<{
+    attempts: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    lastSource?: string;
+  }>({ attempts: 0, timer: null });
+
   // Keep a ref in sync so event handlers use the latest flag
   useEffect(() => {
     liveEnabledRef.current = liveEnabled;
   }, [liveEnabled]);
+
+  const clearInitialRetry = () => {
+    if (initialRetryRef.current.timer) {
+      clearTimeout(initialRetryRef.current.timer);
+      initialRetryRef.current.timer = null;
+    }
+    initialRetryRef.current.attempts = 0;
+  };
 
   // Initialize the Socket.IO connection once on mount. I set up
   // connection lifecycle handlers, latest snapshot and live update channels,
@@ -114,6 +131,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       console.log("✅ [WebSocket] Connected to backend, socket ID:", newSocket.id);
       setIsConnected(true);
       setError(null);
+      // Reset any pending initial-fetch retry — fresh connection, fresh state.
+      clearInitialRetry();
     });
 
     // Disconnect event handler
@@ -131,6 +150,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     // Latest snapshot payload. If a source is provided, I update just that key;
     // otherwise the payload contains a map of all sources.
     newSocket.on("metrics:data", (data: MetricsResponse) => {
+      // First successful payload — cancel any pending initial-fetch retry.
+      clearInitialRetry();
       // If the data has a source, update the metrics for that source
       if (data.source) {
         // Single source data (e.g. a single server)
@@ -168,14 +189,44 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       setError(null);
     });
 
-    // Metrics error event handler
-    newSocket.on("metrics:error", (err: { message: string }) => {
-      setError(err.message);
-    });
+    // Metrics error event handler. On "no data yet" errors during cold start,
+    // retry getInitialData with exponential backoff (capped at 5 attempts).
+    newSocket.on(
+      "metrics:error",
+      (err: { message: string; retryAfterMs?: number }) => {
+        setError(err.message);
+        const retryable =
+          /no data yet|failed to fetch metrics/i.test(err.message ?? "") ||
+          typeof err.retryAfterMs === "number";
+        if (!retryable) return;
+
+        const r = initialRetryRef.current;
+        if (r.attempts >= 5) {
+          console.warn("[WebSocket] Initial fetch retry exhausted");
+          return;
+        }
+        const backoff = err.retryAfterMs ?? Math.min(8000, 1000 * 2 ** r.attempts);
+        r.attempts += 1;
+        if (r.timer) clearTimeout(r.timer);
+        r.timer = setTimeout(() => {
+          if (newSocket.connected) {
+            console.log(
+              `🔁 [WebSocket] Retrying metrics:get (attempt ${r.attempts}/5)`,
+            );
+            newSocket.emit(
+              "metrics:get",
+              r.lastSource ? { source: r.lastSource } : {},
+            );
+          }
+        }, backoff);
+      },
+    );
 
     // Real-time metrics updates
     // Live streaming updates for individual sources (suppressed in history mode).
     newSocket.on("metrics-update", (data: MetricsResponse) => {
+      // A live update means the server has data — cancel any pending retry.
+      clearInitialRetry();
       // In history mode, suppress updates entirely
       if (!liveEnabledRef.current) return;
 
@@ -352,9 +403,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   // Request the latest snapshot for a source or all sources.
   const getInitialData = (source?: string) => {
+    // Remember the last requested source so the retry timer re-emits the same
+    // request shape on backoff.
+    initialRetryRef.current.lastSource = source;
     // If the socket is connected, emit the request to get the initial data
     if (socket && isConnected) {
-      // Emit the request to get the initial data
       socket.emit("metrics:get", source ? { source } : {});
     }
   };

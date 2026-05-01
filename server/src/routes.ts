@@ -11,6 +11,7 @@
  */
 
 import { Application, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { config } from '@root/config';
 import Logger from 'bunyan';
 import { MetricLatest } from '@root/shared/services/db/models/Metric.models';
@@ -23,11 +24,25 @@ const ALLOWED_SOURCES = apiRegions.allowed_sources as Array<string>;
 type Source = (typeof ALLOWED_SOURCES)[number];
 
 export default (app: Application) => {
-  // Health check endpoint
-  app.get(`${BASE_PATH}/health`, (req: Request, res: Response) => {
+  // Health check endpoint. Also pings Mongo so a Cloud Scheduler keep-warm
+  // cron hitting this URL keeps Atlas M0 from going to sleep. The ping is
+  // best-effort — if it fails, the endpoint still returns 200 so the keep-warm
+  // request itself doesn't fail loudly.
+  app.get(`${BASE_PATH}/health`, async (req: Request, res: Response) => {
+    let mongoOk = false;
+    try {
+      const db = mongoose.connection.db;
+      if (db) {
+        await db.admin().ping();
+        mongoOk = true;
+      }
+    } catch (err) {
+      log.warn('Health check: Mongo ping failed', err);
+    }
     res.json({
       status: 'ok',
       service: 'devops-insights-backend',
+      mongo: mongoOk ? 'ok' : 'unreachable',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
     });

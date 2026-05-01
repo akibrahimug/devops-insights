@@ -10,6 +10,8 @@ export const io = vi.fn(() => {
     },
     emit: vi.fn(),
     close: vi.fn(),
+    connected: true,
+    id: "mock-socket-id",
     // test-only helper to trigger events
     __emit: (event: string, payload?: any) => {
       (handlers[event] || []).forEach((fn) => fn(payload));

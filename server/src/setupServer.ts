@@ -16,6 +16,7 @@ import { createClient as createRedisClient } from 'redis';
 import mongoose from 'mongoose';
 import { wireMetricChangeStream } from '@root/services/change-streams';
 import { apiPoller } from '@root/services/api-poller';
+import { metricsCache } from '@root/services/metrics-cache';
 import applicationRoutes from '@root/routes';
 import { config } from '@root/config';
 import type { ChangeStream } from 'mongodb';
@@ -56,7 +57,23 @@ export class DevopsInsightsServer {
       apiPoller.enableDirectEmit();
     }
 
-    await apiPoller.startPolling();
+    // Kick off polling and gate `listen()` on the in-memory cache being warm.
+    // Race against an 8s timeout so we never block startup forever if Atlas
+    // is mid-wake — clients hitting an unwarmed cache will get a retryable
+    // metrics:error and the client retries with backoff.
+    const pollerStarted = apiPoller.startPolling();
+    await Promise.race([
+      Promise.all([pollerStarted, metricsCache.whenReady()]),
+      new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+    ]);
+    if (metricsCache.isReady()) {
+      console.log('Metrics cache ready — accepting connections');
+    } else {
+      console.warn(
+        'Metrics cache not ready after 8s — listening anyway, clients will retry',
+      );
+    }
+
     applicationRoutes(this.app);
     await this.listen();
     this.installSignals();
@@ -80,6 +97,16 @@ export class DevopsInsightsServer {
   /* ---------- internals ---------- */
 
   private async connectMongo() {
+    mongoose.set('strictQuery', false);
+    // Auto-reconnect: if the connection drops mid-flight (e.g. Atlas idle
+    // disconnect), mongoose retries by default but the listener gives us a log
+    // anchor and lets us re-issue connect() if the driver gives up.
+    mongoose.connection.on('disconnected', () => {
+      console.warn('Mongo disconnected — attempting reconnect');
+      mongoose.connect(this.mongoUrl).catch((err) => {
+        console.error('Mongo reconnect failed:', err?.message ?? err);
+      });
+    });
     await mongoose.connect(this.mongoUrl);
   }
 
@@ -87,11 +114,19 @@ export class DevopsInsightsServer {
     const db = mongoose.connection.db;
     if (!db) return false;
 
+    // 1.5s timeout — the replSetGetStatus admin command can hang while Atlas
+    // is mid-wake on a cold start. We'd rather fall back to directEmit than
+    // block startup.
     try {
-      await db.admin().command({ replSetGetStatus: 1 });
+      await Promise.race([
+        db.admin().command({ replSetGetStatus: 1 }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('replSetGetStatus timeout')), 1500),
+        ),
+      ]);
       return true; // replica set → change streams OK
     } catch {
-      return false; // standalone → fallback to directEmit
+      return false; // standalone or timeout → fallback to directEmit
     }
   }
 
@@ -110,6 +145,10 @@ export class DevopsInsightsServer {
         await subClient.connect();
         this.io.adapter(createAdapter(pubClient, subClient));
         console.log('Socket.IO Redis adapter enabled');
+      } else {
+        console.log(
+          'REDIS_HOST not set → single-instance mode (no Socket.IO adapter, no leader election)',
+        );
       }
     } catch (err) {
       console.warn('Failed to enable Socket.IO Redis adapter:', err);
@@ -142,13 +181,10 @@ export class DevopsInsightsServer {
         if (ALLOWED_SOURCES.includes(src)) socket.leave(room(src));
       });
 
-      // Get initial data via WebSocket
+      // Get initial data via WebSocket. Cache-first; falls back to Mongo only
+      // if the cache hasn't been warmed yet (cold-start race window).
       socket.on('metrics:get', async ({ source }) => {
         try {
-          const { MetricLatest } = await import(
-            '@root/shared/services/db/models/Metric.models'
-          );
-
           if (source) {
             const src = (source || '').toLowerCase() as Source;
             if (!ALLOWED_SOURCES.includes(src)) {
@@ -158,6 +194,19 @@ export class DevopsInsightsServer {
               });
             }
 
+            const cached = metricsCache.get(src);
+            if (cached) {
+              return socket.emit('metrics:data', {
+                api: this.apiName,
+                source: src,
+                data: cached.data,
+                updatedAt: cached.updatedAt,
+              });
+            }
+
+            const { MetricLatest } = await import(
+              '@root/shared/services/db/models/Metric.models'
+            );
             const doc = await MetricLatest.findOne({
               api: this.apiName,
               source: src,
@@ -165,6 +214,7 @@ export class DevopsInsightsServer {
             if (!doc) {
               return socket.emit('metrics:error', {
                 message: 'No data yet for this source',
+                retryAfterMs: 2000,
               });
             }
 
@@ -175,8 +225,28 @@ export class DevopsInsightsServer {
               updatedAt: doc.updatedAt,
             });
           } else {
-            // Get all sources
+            // All sources — prefer the cache; only fall back to Mongo if cache
+            // is completely empty.
+            const snapshot = metricsCache.getAll();
+            if (snapshot.count > 0) {
+              return socket.emit('metrics:data', {
+                api: this.apiName,
+                data: snapshot.data,
+                count: snapshot.count,
+                updatedAtBySource: snapshot.updatedAtBySource,
+              });
+            }
+
+            const { MetricLatest } = await import(
+              '@root/shared/services/db/models/Metric.models'
+            );
             const rows = await MetricLatest.find({ api: this.apiName }).lean();
+            if (rows.length === 0) {
+              return socket.emit('metrics:error', {
+                message: 'No data yet',
+                retryAfterMs: 2000,
+              });
+            }
             const out: Record<string, unknown> = {};
             const timestamps: Record<string, string> = {};
             rows.forEach((r: any) => {
@@ -192,7 +262,10 @@ export class DevopsInsightsServer {
             });
           }
         } catch (error) {
-          socket.emit('metrics:error', { message: 'Failed to fetch metrics' });
+          socket.emit('metrics:error', {
+            message: 'Failed to fetch metrics',
+            retryAfterMs: 2000,
+          });
         }
       });
 

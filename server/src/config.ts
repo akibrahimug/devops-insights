@@ -55,14 +55,19 @@ class Config {
   }
 
   /**
-   * Validates that all required environment variables are properly set
-   * Throws an error if any required configuration is missing
-   * This should be called during application startup to fail fast on configuration issues
+   * Validates that required environment variables are set. DATABASE_URL is
+   * required; other vars are warned about so misconfigurations surface in
+   * logs without preventing startup.
    */
   public validate(): void {
-    for (const [key, value] of Object.keys(this)) {
-      if (!value) {
-        throw new Error(`Environment variable ${key} is not set`);
+    if (!this.DATABASE_URL) {
+      throw new Error('Environment variable DATABASE_URL is not set');
+    }
+    const recommended: Array<keyof Config> = ['EXTERNAL_API_NAME'];
+    for (const key of recommended) {
+      if (!this[key]) {
+        // eslint-disable-next-line no-console
+        console.warn(`Environment variable ${String(key)} is not set`);
       }
     }
   }

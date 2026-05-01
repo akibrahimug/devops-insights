@@ -8,7 +8,6 @@
  * - This service is used to emit the data to the websocket.
  */
 
-import axios from 'axios';
 import crypto from 'node:crypto';
 import { Server as SocketIOServer } from 'socket.io';
 import {
@@ -20,6 +19,7 @@ import { config } from '@root/config';
 import apiRegions from '@root/static/api-regions.json';
 import { RedisLeaderLock } from '@services/redis/leader.lock';
 import { generateFakeMetrics } from './fake-data-generator';
+import { metricsCache } from './metrics-cache';
 
 const log: Logger = config.createLogger('api-poller');
 
@@ -41,22 +41,31 @@ export class ApiPollerService {
   private cancelRetry?: () => void;
   /** When true, poller emits directly instead of relying on change streams */
   private directEmit = false;
+  /** Tracks the last hash we emitted per source, so we still broadcast on
+   *  hash change even when Mongo is unreachable. */
+  private lastEmittedHash = new Map<string, string>();
   public enableDirectEmit() {
     this.directEmit = true;
   }
-  private beginIntervals() {
-    // poll the api
+  /**
+   * Run the first poll for all sources in parallel, then schedule recurring
+   * intervals. Returns a promise that resolves after the first pass settles
+   * (success or Mongo failure — never rejects). Used by setupServer to gate
+   * `listen()` on a warm cache.
+   */
+  private async beginIntervals(): Promise<void> {
+    const firstPass = this.apis.map((api) => this.pollOnce(api));
+    // schedule recurring intervals immediately so cadence is correct even if
+    // first pass takes a moment
     this.apis.forEach((api) => {
       const key = `${api.name}:${api.source}`;
-      // initial immediate poll
-      void this.pollOnce(api);
-      // set periodic interval
       this.intervals.set(
         key,
         setInterval(() => void this.pollOnce(api), api.interval),
       );
     });
     log.info(`Polling ${this.intervals.size} API targets`);
+    await Promise.allSettled(firstPass);
   }
 
   // map the sources to the api name and url
@@ -75,7 +84,7 @@ export class ApiPollerService {
   /* ---------- start / stop ---------- */
 
   // start polling the api
-  public async startPolling() {
+  public async startPolling(): Promise<void> {
     // stop polling if the intervals are not empty
     if (this.intervals.size) this.stopPolling(); // idempotent
     // If Redis is configured, attempt to become leader before polling
@@ -86,13 +95,15 @@ export class ApiPollerService {
       });
       this.cancelRetry = this.leader.startRetryAcquire(async () => {
         // On becoming leader, start intervals
-        this.beginIntervals();
+        await this.beginIntervals();
       });
       log.info('Attempting leader election via Redis for API poller');
-      return; // do not start intervals until leader
+      // Non-leader instances resolve immediately; they serve from cache that
+      // gets populated by change-stream broadcasts from the leader.
+      return;
     }
     // No Redis → single instance mode
-    this.beginIntervals();
+    await this.beginIntervals();
   }
 
   public stopPolling() {
@@ -100,6 +111,7 @@ export class ApiPollerService {
     this.cancelRetry = undefined;
     this.intervals.forEach(clearInterval);
     this.intervals.clear();
+    this.lastEmittedHash.clear();
     void this.leader?.release().catch(() => {});
     this.leader = undefined;
   }
@@ -107,18 +119,22 @@ export class ApiPollerService {
   /* ---------- core polling ---------- */
 
   private async pollOnce(api: ExternalApi) {
+    // Generate fake data (fast, deterministic-per-call). Real HTTP polling
+    // is intentionally disabled — fake data keeps cold start cheap.
+    const fakeData = generateFakeMetrics(api.source);
+    const updatedAt = new Date();
+    const json = JSON.stringify(fakeData);
+    const hash = crypto.createHash('sha1').update(json).digest('hex');
+
+    // Populate the in-memory cache FIRST. Decoupled from Mongo so a cold/asleep
+    // Atlas can never block first-paint.
+    metricsCache.set(api.source, fakeData, updatedAt);
+
+    log.debug(`${api.name}/${api.source} polled, hash=${hash.substring(0, 8)}`);
+
+    // Best-effort Mongo write. If Atlas is asleep or unreachable, swallow and
+    // continue — the cache + directEmit still serve clients.
     try {
-      console.log(`🔄 [Poller] Polling ${api.source}...`);
-
-      // Generate fake data instead of making HTTP request
-      const fakeData = generateFakeMetrics(api.source);
-      const json = JSON.stringify(fakeData);
-      // hash the data
-      const hash = crypto.createHash('sha1').update(json).digest('hex');
-
-      console.log(`🔍 [Poller] ${api.source} - New hash: ${hash.substring(0, 8)}`);
-
-      // check if the data has changed
       const existing = await MetricLatest.findOne({
         api: api.name,
         source: api.source,
@@ -126,60 +142,47 @@ export class ApiPollerService {
         .select('hash')
         .lean();
 
-      console.log(`🔍 [Poller] ${api.source} - Old hash: ${existing?.hash?.substring(0, 8) || 'none'}`);
-
-      // if the data has not changed, return
-      if (existing?.hash === hash) {
-        console.log(`⏭️  [Poller] ${api.source} - Hash unchanged, skipping emit`);
-        log.debug(`${api.name}/${api.source} hash unchanged (${hash.substring(0, 8)}...)`);
-        return; // no change
-      }
-
-      console.log(`✅ [Poller] ${api.source} - Hash changed! Updating DB...`);
-
-      // upsert latest & append history
-      const latestResult = await MetricLatest.updateOne(
-        { api: api.name, source: api.source },
-        { $set: { data: fakeData, hash } },
-        { upsert: true },
-      );
-      // append history
-      await MetricHistory.create({
-        api: api.name,
-        source: api.source,
-        data: fakeData,
-        hash,
-      });
-
-      // log the change to the database
-      log.info(`${api.name}/${api.source} changed (db updated) - hash: ${hash.substring(0, 8)}...`);
-
-      /* ---------- optional direct emit ---------- */
-      // emit the change to the websocket
-      if (this.directEmit && this.io) {
-        console.log(`📡 [Poller] ${api.source} - Emitting to room: metrics:${api.name}:${api.source}`);
-        console.log(`📡 [Poller] ${api.source} - Connected sockets: ${this.io.sockets.sockets.size}`);
-
-        this.io.to(`metrics:${api.name}:${api.source}`).emit('metrics-update', {
+      if (existing?.hash !== hash) {
+        await MetricLatest.updateOne(
+          { api: api.name, source: api.source },
+          { $set: { data: fakeData, hash } },
+          { upsert: true },
+        );
+        await MetricHistory.create({
           api: api.name,
           source: api.source,
           data: fakeData,
-          timestamp: new Date().toISOString(),
+          hash,
         });
-
-        console.log(`✅ [Poller] ${api.source} - Emitted metrics-update event`);
-      } else {
-        console.log(`⚠️  [Poller] ${api.source} - NOT emitting (directEmit: ${this.directEmit}, io: ${!!this.io})`);
+        log.info(
+          `${api.name}/${api.source} changed (db updated) - hash: ${hash.substring(0, 8)}...`,
+        );
       }
     } catch (err: any) {
-      log.error(
+      log.warn(
         {
           api: `${api.name}/${api.source}`,
           message: err?.message,
-          status: err?.response?.status,
           code: err?.code,
         },
-        'Failed to poll',
+        'Mongo write failed; serving from cache',
+      );
+    }
+
+    // Direct emit to subscribed sockets. Fires whenever the hash differs from
+    // what we last broadcast for this source — so first poll always emits, and
+    // subsequent emits happen even when Mongo is unreachable. When change
+    // streams are wired this is skipped (directEmit=false).
+    if (this.directEmit && this.io && this.lastEmittedHash.get(api.source) !== hash) {
+      this.io.to(`metrics:${api.name}:${api.source}`).emit('metrics-update', {
+        api: api.name,
+        source: api.source,
+        data: fakeData,
+        timestamp: updatedAt.toISOString(),
+      });
+      this.lastEmittedHash.set(api.source, hash);
+      log.debug(
+        `${api.name}/${api.source} emitted metrics-update to room (directEmit)`,
       );
     }
   }

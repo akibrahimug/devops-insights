@@ -106,4 +106,106 @@ describe("WebSocketContext", () => {
     );
     expect(unsubscribeCalls.length).toBeGreaterThanOrEqual(0);
   });
+
+  describe("initial-fetch retry on metrics:error", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("retries metrics:get with exponential backoff on retryable error", () => {
+      renderHook(() => useWebSocket(), { wrapper });
+      const sock = getLastSocket();
+      sock.emit.mockClear();
+
+      act(() => {
+        sock.__emit("metrics:error", { message: "No data yet" });
+      });
+
+      // First retry should fire ~1000ms later
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      const calls = sock.emit.mock.calls.filter(
+        (c: any[]) => c[0] === "metrics:get"
+      );
+      expect(calls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("honors server-supplied retryAfterMs", () => {
+      renderHook(() => useWebSocket(), { wrapper });
+      const sock = getLastSocket();
+      sock.emit.mockClear();
+
+      act(() => {
+        sock.__emit("metrics:error", {
+          message: "Failed to fetch metrics",
+          retryAfterMs: 3000,
+        });
+      });
+
+      // Before 3s passes, no retry should have fired yet
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      let calls = sock.emit.mock.calls.filter(
+        (c: any[]) => c[0] === "metrics:get"
+      );
+      expect(calls.length).toBe(0);
+
+      // After the full retryAfterMs, retry fires
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      calls = sock.emit.mock.calls.filter(
+        (c: any[]) => c[0] === "metrics:get"
+      );
+      expect(calls.length).toBe(1);
+    });
+
+    it("cancels pending retry when metrics:data arrives", () => {
+      renderHook(() => useWebSocket(), { wrapper });
+      const sock = getLastSocket();
+      sock.emit.mockClear();
+
+      act(() => {
+        sock.__emit("metrics:error", { message: "No data yet" });
+      });
+      act(() => {
+        sock.__emit("metrics:data", {
+          api: "metrics",
+          data: { "us-east": { ok: true } },
+          count: 1,
+        });
+      });
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      const retries = sock.emit.mock.calls.filter(
+        (c: any[]) => c[0] === "metrics:get"
+      );
+      expect(retries.length).toBe(0);
+    });
+
+    it("does not retry on non-retryable errors (e.g. invalid source)", () => {
+      renderHook(() => useWebSocket(), { wrapper });
+      const sock = getLastSocket();
+      sock.emit.mockClear();
+
+      act(() => {
+        sock.__emit("metrics:error", { message: "Invalid source" });
+      });
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
+
+      const retries = sock.emit.mock.calls.filter(
+        (c: any[]) => c[0] === "metrics:get"
+      );
+      expect(retries.length).toBe(0);
+    });
+  });
 });

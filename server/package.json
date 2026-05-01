@@ -45,7 +45,6 @@
     "express": "^5.1.0",
     "http-status-codes": "^2.3.0",
     "mongoose": "^8.17.0",
-    "pm2": "^6.0.13",
     "redis": "^5.8.0",
     "socket.io": "^4.8.1",
     "swagger-stats": "^0.99.7",

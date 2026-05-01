@@ -57,6 +57,11 @@ jobs:
       # ---------------------------------------------------------------
       # 5) Deploy to Cloud Run
       # ---------------------------------------------------------------
+      # Flags chosen for fast cold start on free tier:
+      #   --cpu-boost: free, doubles CPU during startup (~30-50% faster boot)
+      #   --min-instances=0: keep free tier (set to 1 only if cold start is unacceptable)
+      #   --concurrency=80: explicit (default for gen2)
+      #   --timeout=300: long-lived WebSocket connections need generous timeout
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE }} \
@@ -64,10 +69,14 @@ jobs:
             --platform=managed \
             --image="$IMAGE" \
             --allow-unauthenticated \
+            --cpu=1 \
             --memory=512Mi \
+            --cpu-boost \
+            --concurrency=80 \
+            --min-instances=0 \
+            --timeout=300 \
             --port=5000 \
             --set-env-vars="NODE_ENV=production" \
             --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             --set-env-vars="EXTERNAL_API_NAME=${{ secrets.EXTERNAL_API_NAME }}" \
-            --set-env-vars="CLIENT_URL=*" \
-            --set-env-vars="REDIS_REQUIRED=false"
+            --set-env-vars="CLIENT_URL=*"

@@ -31,7 +31,6 @@
 
 import express, { Express } from 'express';
 import { DevopsInsightsServer } from '@root/setupServer';
-import databaseConnection from '@root/setupDatabase';
 import { config } from '@root/config';
 import Logger from 'bunyan';
 
@@ -39,8 +38,8 @@ const log: Logger = config.createLogger('app');
 class Application {
   public initialize(): void {
     this.loadConfig();
-    //  connect to the database before starting the server
-    databaseConnection();
+    // Mongo connection is established inside server.start() — no separate
+    // fire-and-forget connect needed.
     const app: Express = express();
     const server: DevopsInsightsServer = new DevopsInsightsServer(app);
     server.start();
