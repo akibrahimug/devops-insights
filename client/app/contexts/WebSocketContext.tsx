@@ -17,10 +17,17 @@ import {
   ReactNode,
 } from "react";
 import { io, Socket } from "socket.io-client";
+import { loadSnapshot, saveSnapshot } from "@/lib/cache/metricsStore";
+import { seedMetrics, seedTimestamps } from "@/lib/cache/seed";
 
 export interface MetricData {
   [key: string]: unknown;
 }
+
+// Where the currently-rendered metrics came from. "seed" = bundled snapshot for
+// a first-ever visit, "cache" = the user's last persisted snapshot (IndexedDB),
+// "live" = a fresh payload from the socket. Used to drive the "cached" badge.
+export type DataOrigin = "seed" | "cache" | "live";
 
 export interface MetricsResponse {
   api: string;
@@ -45,6 +52,10 @@ export interface WebSocketState {
     updatedAt?: string;
   }>;
   error: string | null;
+  // Provenance of the current `metrics` snapshot and, when not live, the ISO
+  // timestamp the cached snapshot was saved (null for the bundled seed).
+  dataOrigin: DataOrigin;
+  snapshotSavedAt: string | null;
   subscribeToSource: (source: string) => void;
   unsubscribeFromSource: (source: string) => void;
   getInitialData: (source?: string) => void;
@@ -74,11 +85,20 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   // Define the state variables (socket, isConnected, metrics, lastUpdate, error)
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [metrics, setMetrics] = useState<Record<string, MetricData>>({});
+  // Seed the snapshot synchronously so the very first paint (incl. SSR) shows a
+  // full dashboard instead of skeletons. Returning visitors' IndexedDB cache and
+  // then live socket data override this within milliseconds.
+  const [metrics, setMetrics] =
+    useState<Record<string, MetricData>>(seedMetrics);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [latestTimestamps, setLatestTimestamps] = useState<
-    Record<string, string>
-  >({});
+  const [latestTimestamps, setLatestTimestamps] =
+    useState<Record<string, string>>(seedTimestamps);
+  const [dataOrigin, setDataOrigin] = useState<DataOrigin>("seed");
+  const [snapshotSavedAt, setSnapshotSavedAt] = useState<string | null>(null);
+  // Flipped true on the first live payload. Guards the async cache hydration
+  // from clobbering live data that raced in first, and gates persistence so we
+  // never write the seed/cache back to IndexedDB.
+  const liveArrivedRef = useRef<boolean>(false);
   const [history, setHistory] = useState<
     Array<{
       source: string;
@@ -112,6 +132,47 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
     initialRetryRef.current.attempts = 0;
   };
+
+  // Hydrate from the user's last persisted snapshot (IndexedDB) on mount. Runs
+  // once, before/while the socket connects. The liveArrivedRef guard ensures a
+  // slow disk read can never overwrite live data that already arrived.
+  useEffect(() => {
+    let cancelled = false;
+    loadSnapshot().then((snap) => {
+      if (cancelled || !snap || liveArrivedRef.current) return;
+      setMetrics(snap.metrics as Record<string, MetricData>);
+      setLatestTimestamps(snap.latestTimestamps || {});
+      setSnapshotSavedAt(snap.savedAt || null);
+      setDataOrigin("cache");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Persist the latest *live* snapshot to IndexedDB (debounced) so the next
+  // visit paints instantly. Gated on liveArrivedRef so we never persist the
+  // seed or a re-read cache. Error-status sources are skipped so a transient
+  // failure doesn't get cached over the last good value for that source.
+  useEffect(() => {
+    if (!liveArrivedRef.current) return;
+    const timer = setTimeout(() => {
+      const healthy: Record<string, unknown> = {};
+      const ts: Record<string, string> = {};
+      for (const [source, value] of Object.entries(metrics)) {
+        if ((value as { status?: string })?.status === "error") continue;
+        healthy[source] = value;
+        if (latestTimestamps[source]) ts[source] = latestTimestamps[source];
+      }
+      if (Object.keys(healthy).length === 0) return;
+      void saveSnapshot({
+        metrics: healthy,
+        latestTimestamps: ts,
+        savedAt: new Date().toISOString(),
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [metrics, latestTimestamps]);
 
   // Initialize the Socket.IO connection once on mount. I set up
   // connection lifecycle handlers, latest snapshot and live update channels,
@@ -159,6 +220,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           ...prev,
           [data.source!]: data.data as MetricData,
         }));
+        liveArrivedRef.current = true;
+        setDataOrigin("live");
         // subscribe to realtime updates for this source (only if live mode)
         if (liveEnabledRef.current) {
           try {
@@ -171,6 +234,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         console.log("📊 [WebSocket] Received all sources data, count:", Object.keys(data.data as Record<string, MetricData>).length);
         setMetrics(data.data as Record<string, MetricData>);
         if (data.updatedAtBySource) setLatestTimestamps(data.updatedAtBySource);
+        // First live all-sources payload — mark live so cache hydration backs
+        // off and the persist effect starts saving real snapshots.
+        liveArrivedRef.current = true;
+        setDataOrigin("live");
         // subscribe to realtime updates for all sources returned (only if live mode)
         if (liveEnabledRef.current) {
           try {
@@ -250,6 +317,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         if (ts) {
           setLatestTimestamps((prev) => ({ ...prev, [data.source!]: ts }));
         }
+        // A live single-source update — mark live (drives the persist effect
+        // and clears the "cached" badge).
+        liveArrivedRef.current = true;
+        setDataOrigin("live");
         // Update the last update time
         setLastUpdate(new Date());
         console.log("✅ [WebSocket] Updated metrics state for:", data.source);
@@ -453,6 +524,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     latestTimestamps,
     history,
     error,
+    dataOrigin,
+    snapshotSavedAt,
     subscribeToSource,
     unsubscribeFromSource,
     getInitialData,

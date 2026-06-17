@@ -24,5 +24,6 @@
       "@services/*": ["src/shared/services/*"]
     }
   },
-  "exclude": ["node_modules", "dist", "jest.config.ts"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "jest.config.ts", "scripts"]
 }

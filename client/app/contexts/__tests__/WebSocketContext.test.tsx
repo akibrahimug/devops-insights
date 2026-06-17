@@ -12,6 +12,25 @@ vi.mock(
 );
 import { getLastSocket } from "../../../test/__mocks__/socket.io-client";
 
+// Control the IndexedDB cache layer without touching real storage.
+const { loadSnapshotMock, saveSnapshotMock } = vi.hoisted(() => ({
+  loadSnapshotMock: vi.fn(async (): Promise<any> => null),
+  saveSnapshotMock: vi.fn(async (_snapshot: any): Promise<void> => {}),
+}));
+vi.mock("@/lib/cache/metricsStore", () => ({
+  loadSnapshot: loadSnapshotMock,
+  saveSnapshot: saveSnapshotMock,
+}));
+
+const flush = () => act(async () => { await Promise.resolve(); });
+
+beforeEach(() => {
+  loadSnapshotMock.mockReset();
+  loadSnapshotMock.mockResolvedValue(null);
+  saveSnapshotMock.mockReset();
+  saveSnapshotMock.mockResolvedValue(undefined);
+});
+
 function wrapper({ children }: { children: React.ReactNode }) {
   return <WebSocketProvider>{children}</WebSocketProvider>;
 }
@@ -206,6 +225,124 @@ describe("WebSocketContext", () => {
         (c: any[]) => c[0] === "metrics:get"
       );
       expect(retries.length).toBe(0);
+    });
+  });
+
+  describe("instant first paint (seed → cache → live)", () => {
+    it("starts from the bundled seed snapshot", async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+      await flush();
+      expect(result.current.dataOrigin).toBe("seed");
+      // Seed pre-populates the 6 regions so first paint isn't empty.
+      expect(Object.keys(result.current.metrics)).toEqual(
+        expect.arrayContaining(["us-east", "eu-west", "ap-southeast"])
+      );
+    });
+
+    it("hydrates from the IndexedDB cache when present", async () => {
+      loadSnapshotMock.mockResolvedValueOnce({
+        metrics: { "us-east": { status: "ok", cached: true } },
+        latestTimestamps: { "us-east": "2025-01-01T00:00:00.000Z" },
+        savedAt: "2025-01-01T00:00:05.000Z",
+      });
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+      await flush();
+      expect(result.current.dataOrigin).toBe("cache");
+      expect((result.current.metrics["us-east"] as any).cached).toBe(true);
+      expect(result.current.snapshotSavedAt).toBe("2025-01-01T00:00:05.000Z");
+    });
+
+    it("flips to live on metrics:data and does not let a slow cache override it", async () => {
+      // Cache resolves only after we manually release it.
+      let release!: (v: any) => void;
+      loadSnapshotMock.mockReturnValueOnce(
+        new Promise((res) => {
+          release = res;
+        })
+      );
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+      const sock = getLastSocket();
+
+      act(() => {
+        sock.__emit("metrics:data", {
+          api: "metrics",
+          data: { "us-east": { status: "ok", live: true } },
+          updatedAtBySource: { "us-east": "2025-06-01T00:00:00.000Z" },
+          count: 1,
+        });
+      });
+      expect(result.current.dataOrigin).toBe("live");
+
+      // Late cache read must not clobber live data (liveArrivedRef guard).
+      await act(async () => {
+        release({
+          metrics: { stale: { status: "ok" } },
+          latestTimestamps: {},
+          savedAt: "2025-01-01T00:00:00.000Z",
+        });
+        await Promise.resolve();
+      });
+      expect(result.current.dataOrigin).toBe("live");
+      expect(result.current.metrics).not.toHaveProperty("stale");
+      expect((result.current.metrics["us-east"] as any).live).toBe(true);
+    });
+
+    it("flips to live on a metrics-update push", async () => {
+      const { result } = renderHook(() => useWebSocket(), { wrapper });
+      await flush();
+      act(() => {
+        getLastSocket().__emit("metrics-update", {
+          api: "metrics",
+          source: "eu-west",
+          data: { status: "ok" },
+          updatedAt: "2025-06-01T00:00:00.000Z",
+        });
+      });
+      expect(result.current.dataOrigin).toBe("live");
+    });
+  });
+
+  describe("persisting live snapshots", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it("debounces a save and skips error-status sources", () => {
+      renderHook(() => useWebSocket(), { wrapper });
+      const sock = getLastSocket();
+
+      act(() => {
+        sock.__emit("metrics:data", {
+          api: "metrics",
+          data: {
+            "us-east": { status: "ok", v: 1 },
+            "eu-west": { status: "error", v: 2 },
+          },
+          updatedAtBySource: {
+            "us-east": "2025-06-01T00:00:00.000Z",
+            "eu-west": "2025-06-01T00:00:01.000Z",
+          },
+          count: 2,
+        });
+      });
+      saveSnapshotMock.mockClear();
+
+      // No write before the debounce window elapses.
+      act(() => vi.advanceTimersByTime(900));
+      expect(saveSnapshotMock).not.toHaveBeenCalled();
+
+      act(() => vi.advanceTimersByTime(200));
+      expect(saveSnapshotMock).toHaveBeenCalledTimes(1);
+      const arg = saveSnapshotMock.mock.calls[0][0] as any;
+      expect(arg.metrics).toHaveProperty("us-east");
+      expect(arg.metrics).not.toHaveProperty("eu-west");
+      expect(arg.latestTimestamps["us-east"]).toBe("2025-06-01T00:00:00.000Z");
+      expect(typeof arg.savedAt).toBe("string");
+    });
+
+    it("never persists the seed before any live data arrives", () => {
+      renderHook(() => useWebSocket(), { wrapper });
+      act(() => vi.advanceTimersByTime(5000));
+      expect(saveSnapshotMock).not.toHaveBeenCalled();
     });
   });
 });

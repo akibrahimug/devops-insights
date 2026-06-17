@@ -191,6 +191,16 @@ The dashboard is engineered to render quickly even on a cold Cloud Run revision 
 
 See [`MIGRATION.md`](MIGRATION.md) for the architecture decisions, the keep-warm cron setup, and verification steps.
 
+### Instant client-side first paint
+
+The backend targets above cover how fast *live* data arrives. To make the dashboard feel instant regardless, the client renders cached data immediately and swaps in live data the moment the socket delivers it. Three layers feed the metrics state, each overriding the previous:
+
+1. **Bundled seed** — a static snapshot of all 6 regions (`client/lib/cache/seed-metrics.json`) is the initial state, so a first-ever visitor sees a full dashboard on the very first paint (including SSR) instead of skeletons. It's generated from the server's `generateFakeMetrics` via `server/scripts/gen-seed.ts`, so its shape always matches live payloads. Re-generate with `cd server && npx ts-node scripts/gen-seed.ts`.
+2. **IndexedDB cache** — the last *live* snapshot the user saw is persisted to IndexedDB (`client/lib/cache/metricsStore.ts`) and replayed on the next visit, so returning users see their real, recent data while the backend cold-starts. Persistence is best-effort and fault-tolerant (SSR, private browsing, and quota errors degrade silently).
+3. **Live socket data** — the first `metrics:data` / `metrics-update` payload overrides the cache and is then persisted for next time.
+
+A muted "Cached · updating…" badge in the header (with the snapshot's age) signals that the data isn't live yet; it clears automatically once the first live payload lands.
+
 ## License
 
 ISC License

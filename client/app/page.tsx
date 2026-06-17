@@ -91,6 +91,8 @@ export default function DevOpsDashboard() {
     getInitialData,
     enableLive,
     disableLive,
+    dataOrigin,
+    snapshotSavedAt,
   } = useWebSocket();
   const { setHeader } = useHeader();
   const [regions, setRegions] = useState<Region[]>([]);
@@ -109,8 +111,10 @@ export default function DevOpsDashboard() {
       showHistory: false,
       activeTab: "latest",
       lastUpdated,
+      dataStale: dataOrigin !== "live",
+      snapshotSavedAt,
     });
-  }, [isConnected, autoRefreshEnabled, lastUpdated]);
+  }, [isConnected, autoRefreshEnabled, lastUpdated, dataOrigin, snapshotSavedAt]);
 
   // Process live snapshot into region models (latest mode only). Filters out
   // invalid entries and normalizes the shape for downstream components.

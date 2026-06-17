@@ -101,6 +101,16 @@ If the 8s timeout fires before the cache is ready, the server still listens; the
 - Uses a `liveEnabledRef` so socket event handlers (closed over the initial state) can read the latest flag — when adding new handlers, follow the same ref pattern.
 - **Retries `metrics:get` with exponential backoff** (1s → 2s → 4s → 8s, max 5 attempts) when the server emits `metrics:error` with a retryable message ("No data yet", "Failed to fetch metrics") or a `retryAfterMs` hint. Tracked via `initialRetryRef`. Cancelled on first `metrics:data` or `metrics-update`. Reset on every `connect`.
 
+#### Client-side instant first paint (seed → IndexedDB → live)
+
+To avoid showing skeletons while the backend cold-starts, `metrics`/`latestTimestamps` are fed by three layers, each overriding the previous, all wired in `WebSocketContext`:
+
+1. **Bundled seed** (`client/lib/cache/seed.ts` + `seed-metrics.json`) — the *initial* state, so first paint (incl. SSR) shows a full dashboard. Generated from the server's `generateFakeMetrics` via `server/scripts/gen-seed.ts` (run `cd server && npx ts-node scripts/gen-seed.ts` to regenerate — it picks a healthy window per region). **If the live payload shape changes, regenerate the seed** so it stays in sync.
+2. **IndexedDB cache** (`client/lib/cache/metricsStore.ts`) — a hydrate-on-mount effect loads the user's last persisted *live* snapshot. A debounced effect persists every live snapshot back (skipping `status === "error"` sources). Store helpers are fault-tolerant (SSR/private-mode/quota → no-op), so call them only from effects.
+3. **Live socket data** — `metrics:data` / `metrics-update` handlers set `liveArrivedRef.current = true` and `dataOrigin = "live"`. The `liveArrivedRef` guard stops a slow IndexedDB read from clobbering live data that raced in first — follow this ref pattern if you add hydration paths.
+
+`dataOrigin` (`"seed" | "cache" | "live"`) and `snapshotSavedAt` are exposed on the context; pages pass `dataStale: dataOrigin !== "live"` into `setHeader` to render the muted "Cached · updating…" badge (`AppHeader`), which clears on the first live payload.
+
 `HeaderContext` is configured by each page via `useHeader().setHeader(...)` in an effect; the global `HeaderMount` renders it. Pages own their auto-refresh / live-vs-history toggle and pass callbacks up.
 
 Region drill-down lives at `app/regions/[region]/page.tsx`.

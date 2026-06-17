@@ -1,0 +1,1059 @@
+{
+  "us-east": {
+    "status": "ok",
+    "server_issue": null,
+    "strict": false,
+    "version": "v2.3.5",
+    "roles": [
+      "api",
+      "worker",
+      "cache"
+    ],
+    "results": {
+      "stats": {
+        "online": 52,
+        "servers_count": 4,
+        "session": 149,
+        "server": {
+          "cpus": 3,
+          "cpu_load": 51.68231048559049,
+          "active_connections": 7930,
+          "wait_time": 80,
+          "workers": [
+            [
+              "api-handler-1",
+              {
+                "workers": 4,
+                "idle": 1,
+                "waiting": 3,
+                "wait_time": 211,
+                "time_to_return": 951,
+                "recently_blocked_keys": [
+                  "key_bmmk9a",
+                  "key_mmk9ax",
+                  "key_mk9axx"
+                ],
+                "top_keys": [
+                  [
+                    "top_bmmk",
+                    40
+                  ]
+                ]
+              }
+            ],
+            [
+              "email-sender-2",
+              {
+                "workers": 9,
+                "idle": 2,
+                "waiting": 5,
+                "wait_time": 388,
+                "time_to_return": 997,
+                "recently_blocked_keys": [
+                  "key_i739i3",
+                  "key_739i31"
+                ],
+                "top_keys": [
+                  [
+                    "top_rysy",
+                    2
+                  ],
+                  [
+                    "top_ysy7",
+                    21
+                  ],
+                  [
+                    "top_sy7l",
+                    1
+                  ]
+                ]
+              }
+            ],
+            [
+              "data-processor-3",
+              {
+                "workers": 6,
+                "idle": 5,
+                "waiting": 1,
+                "wait_time": 333,
+                "time_to_return": 904,
+                "recently_blocked_keys": [
+                  "key_rysy7l",
+                  "key_ysy7l8",
+                  "key_sy7l82",
+                  "key_y7l82j"
+                ],
+                "top_keys": [
+                  [
+                    "top_eq6b",
+                    84
+                  ],
+                  [
+                    "top_q6be",
+                    31
+                  ],
+                  [
+                    "top_6bep",
+                    38
+                  ],
+                  [
+                    "top_bepj",
+                    80
+                  ]
+                ]
+              }
+            ]
+          ],
+          "timers": 10,
+          "worker_count": 3,
+          "avg_worker_load": 57,
+          "overloaded_workers": 0,
+          "active_workers": 1,
+          "total_worker_memory": 1660
+        }
+      },
+      "services": {
+        "redis": true,
+        "database": true
+      },
+      "performance": {
+        "response_times": {
+          "p50": 116,
+          "p95": 593,
+          "p99": 723
+        },
+        "error_rate": 2.3115668966664398,
+        "requests_per_second": 1893,
+        "uptime_percent": 98.21061335707955
+      },
+      "deployment": {
+        "last_deployment": "2026-06-15T09:32:43.668Z",
+        "build_status": "failed",
+        "version_number": "v1.13.2",
+        "rollback_ready": false,
+        "failed_deployments_last_week": 1,
+        "deployment_duration_minutes": 10,
+        "last_rollback": null
+      },
+      "memory": {
+        "usage_percent": 55.27880182136414,
+        "available_mb": 2460,
+        "total_mb": 8192,
+        "swap_usage_percent": 9.641113416582812,
+        "total": 8,
+        "used": 5.427734375,
+        "available": 1.060546875
+      },
+      "storage": {
+        "disk_usage_percent": 61.000561945857044,
+        "io_wait_percent": 11.589949795815073,
+        "read_ops_per_sec": 559,
+        "write_ops_per_sec": 238
+      },
+      "network": {
+        "bytes_in_per_sec": 103059,
+        "bytes_out_per_sec": 106445,
+        "packets_dropped": 2,
+        "latency_ms": 6
+      },
+      "alerts": {
+        "critical_alerts": 1,
+        "warning_alerts": 0,
+        "info_alerts": 4,
+        "active_alerts": 7,
+        "escalated_alerts": 1,
+        "alert_response_time": 6
+      },
+      "security": {
+        "threat_level": "low",
+        "vulnerability_score": 10,
+        "failed_auth_attempts": 14,
+        "firewall_blocks": 49,
+        "failed_logins": 7,
+        "blocked_ips": 27,
+        "ssl_cert_days": 48
+      }
+    }
+  },
+  "eu-west": {
+    "status": "ok",
+    "server_issue": null,
+    "strict": true,
+    "version": "v2.8.7",
+    "roles": [
+      "api",
+      "worker",
+      "cache"
+    ],
+    "results": {
+      "stats": {
+        "online": 34,
+        "servers_count": 3,
+        "session": 308,
+        "server": {
+          "cpus": 6,
+          "cpu_load": 54.2067628110783,
+          "active_connections": 14167,
+          "wait_time": 52,
+          "workers": [
+            [
+              "api-handler-1",
+              {
+                "workers": 4,
+                "idle": 1,
+                "waiting": 1,
+                "wait_time": 467,
+                "time_to_return": 796,
+                "recently_blocked_keys": [
+                  "key_dp3gv1"
+                ],
+                "top_keys": [
+                  [
+                    "top_dp3g",
+                    36
+                  ],
+                  [
+                    "top_p3gv",
+                    98
+                  ]
+                ]
+              }
+            ],
+            [
+              "email-sender-2",
+              {
+                "workers": 9,
+                "idle": 5,
+                "waiting": 2,
+                "wait_time": 196,
+                "time_to_return": 734,
+                "recently_blocked_keys": [
+                  "key_fn9ssw",
+                  "key_n9sswc"
+                ],
+                "top_keys": [
+                  [
+                    "top_9whg",
+                    13
+                  ],
+                  [
+                    "top_whg8",
+                    55
+                  ],
+                  [
+                    "top_hg8d",
+                    71
+                  ]
+                ]
+              }
+            ],
+            [
+              "data-processor-3",
+              {
+                "workers": 6,
+                "idle": 3,
+                "waiting": 3,
+                "wait_time": 179,
+                "time_to_return": 1035,
+                "recently_blocked_keys": [
+                  "key_9whg8d",
+                  "key_whg8d0",
+                  "key_hg8d04",
+                  "key_g8d043"
+                ],
+                "top_keys": [
+                  [
+                    "top_y8gw",
+                    12
+                  ],
+                  [
+                    "top_8gwi",
+                    43
+                  ],
+                  [
+                    "top_gwi1",
+                    19
+                  ],
+                  [
+                    "top_wi19",
+                    23
+                  ]
+                ]
+              }
+            ],
+            [
+              "cache-manager-4",
+              {
+                "workers": 3,
+                "idle": 1,
+                "waiting": 2,
+                "wait_time": 500,
+                "time_to_return": 461,
+                "recently_blocked_keys": [
+                  "key_b8n8nt",
+                  "key_8n8ntq",
+                  "key_n8ntqb",
+                  "key_8ntqb6"
+                ],
+                "top_keys": [
+                  [
+                    "top_wc9i",
+                    89
+                  ],
+                  [
+                    "top_c9ip",
+                    66
+                  ]
+                ]
+              }
+            ]
+          ],
+          "timers": 16,
+          "worker_count": 4,
+          "avg_worker_load": 52,
+          "overloaded_workers": 0,
+          "active_workers": 3,
+          "total_worker_memory": 2031
+        }
+      },
+      "services": {
+        "redis": true,
+        "database": true
+      },
+      "performance": {
+        "response_times": {
+          "p50": 175,
+          "p95": 303,
+          "p99": 1135
+        },
+        "error_rate": 0.7008804279169922,
+        "requests_per_second": 1481,
+        "uptime_percent": 97.17806424538097
+      },
+      "deployment": {
+        "last_deployment": "2026-06-10T17:02:47.504Z",
+        "build_status": "success",
+        "version_number": "v3.9.0",
+        "rollback_ready": true,
+        "failed_deployments_last_week": 0,
+        "deployment_duration_minutes": 7,
+        "last_rollback": null
+      },
+      "memory": {
+        "usage_percent": 41.61041101267983,
+        "available_mb": 3950,
+        "total_mb": 8192,
+        "swap_usage_percent": 0.17047545054083457,
+        "total": 8,
+        "used": 6.638671875,
+        "available": 1.3544921875
+      },
+      "storage": {
+        "disk_usage_percent": 55.81786420287699,
+        "io_wait_percent": 1.308778006450666,
+        "read_ops_per_sec": 380,
+        "write_ops_per_sec": 223
+      },
+      "network": {
+        "bytes_in_per_sec": 171720,
+        "bytes_out_per_sec": 92390,
+        "packets_dropped": 2,
+        "latency_ms": 16
+      },
+      "alerts": {
+        "critical_alerts": 1,
+        "warning_alerts": 1,
+        "info_alerts": 9,
+        "active_alerts": 5,
+        "escalated_alerts": 1,
+        "alert_response_time": 24
+      },
+      "security": {
+        "threat_level": "low",
+        "vulnerability_score": 13,
+        "failed_auth_attempts": 11,
+        "firewall_blocks": 31,
+        "failed_logins": 16,
+        "blocked_ips": 0,
+        "ssl_cert_days": 172
+      }
+    }
+  },
+  "eu-central": {
+    "status": "ok",
+    "server_issue": null,
+    "strict": true,
+    "version": "v3.5.5",
+    "roles": [
+      "api",
+      "worker",
+      "cache"
+    ],
+    "results": {
+      "stats": {
+        "online": 26,
+        "servers_count": 3,
+        "session": 107,
+        "server": {
+          "cpus": 5,
+          "cpu_load": 37.267905098702826,
+          "active_connections": 13146,
+          "wait_time": 93,
+          "workers": [
+            [
+              "api-handler-1",
+              {
+                "workers": 2,
+                "idle": 1,
+                "waiting": 1,
+                "wait_time": 99,
+                "time_to_return": 624,
+                "recently_blocked_keys": [],
+                "top_keys": []
+              }
+            ],
+            [
+              "email-sender-2",
+              {
+                "workers": 7,
+                "idle": 4,
+                "waiting": 3,
+                "wait_time": 162,
+                "time_to_return": 785,
+                "recently_blocked_keys": [
+                  "key_gk2r3u",
+                  "key_k2r3u5"
+                ],
+                "top_keys": [
+                  [
+                    "top_5cw3",
+                    7
+                  ],
+                  [
+                    "top_cw3z",
+                    42
+                  ]
+                ]
+              }
+            ],
+            [
+              "data-processor-3",
+              {
+                "workers": 4,
+                "idle": 3,
+                "waiting": 1,
+                "wait_time": 312,
+                "time_to_return": 595,
+                "recently_blocked_keys": [
+                  "key_5cw3zg",
+                  "key_cw3zgf"
+                ],
+                "top_keys": [
+                  [
+                    "top_fgbk",
+                    38
+                  ],
+                  [
+                    "top_gbkb",
+                    96
+                  ]
+                ]
+              }
+            ],
+            [
+              "cache-manager-4",
+              {
+                "workers": 9,
+                "idle": 4,
+                "waiting": 2,
+                "wait_time": 454,
+                "time_to_return": 1005,
+                "recently_blocked_keys": [
+                  "key_rudxb8",
+                  "key_udxb8o",
+                  "key_dxb8ob",
+                  "key_xb8obo"
+                ],
+                "top_keys": [
+                  [
+                    "top_986d",
+                    23
+                  ],
+                  [
+                    "top_86de",
+                    38
+                  ],
+                  [
+                    "top_6dee",
+                    46
+                  ]
+                ]
+              }
+            ]
+          ],
+          "timers": 14,
+          "worker_count": 4,
+          "avg_worker_load": 32,
+          "overloaded_workers": 0,
+          "active_workers": 4,
+          "total_worker_memory": 1610
+        }
+      },
+      "services": {
+        "redis": true,
+        "database": true
+      },
+      "performance": {
+        "response_times": {
+          "p50": 162,
+          "p95": 240,
+          "p99": 936
+        },
+        "error_rate": 0.9501558365777409,
+        "requests_per_second": 967,
+        "uptime_percent": 98.77937767826924
+      },
+      "deployment": {
+        "last_deployment": "2026-06-13T01:19:34.084Z",
+        "build_status": "success",
+        "version_number": "v3.19.6",
+        "rollback_ready": true,
+        "failed_deployments_last_week": 0,
+        "deployment_duration_minutes": 25,
+        "last_rollback": null
+      },
+      "memory": {
+        "usage_percent": 56.93282613159681,
+        "available_mb": 1005,
+        "total_mb": 8192,
+        "swap_usage_percent": 12.382839154597605,
+        "total": 8,
+        "used": 4.20703125,
+        "available": 3.015625
+      },
+      "storage": {
+        "disk_usage_percent": 66.10993979495106,
+        "io_wait_percent": 6.925599739379322,
+        "read_ops_per_sec": 511,
+        "write_ops_per_sec": 200
+      },
+      "network": {
+        "bytes_in_per_sec": 60685,
+        "bytes_out_per_sec": 89937,
+        "packets_dropped": 8,
+        "latency_ms": 16
+      },
+      "alerts": {
+        "critical_alerts": 0,
+        "warning_alerts": 3,
+        "info_alerts": 6,
+        "active_alerts": 10,
+        "escalated_alerts": 0,
+        "alert_response_time": 16
+      },
+      "security": {
+        "threat_level": "low",
+        "vulnerability_score": 2,
+        "failed_auth_attempts": 15,
+        "firewall_blocks": 4,
+        "failed_logins": 17,
+        "blocked_ips": 7,
+        "ssl_cert_days": 55
+      }
+    }
+  },
+  "us-west": {
+    "status": "ok",
+    "server_issue": null,
+    "strict": true,
+    "version": "v2.2.2",
+    "roles": [
+      "api",
+      "worker",
+      "cache"
+    ],
+    "results": {
+      "stats": {
+        "online": 61,
+        "servers_count": 4,
+        "session": 526,
+        "server": {
+          "cpus": 5,
+          "cpu_load": 54.28004296725475,
+          "active_connections": 12655,
+          "wait_time": 78,
+          "workers": [
+            [
+              "api-handler-1",
+              {
+                "workers": 2,
+                "idle": 1,
+                "waiting": 1,
+                "wait_time": 187,
+                "time_to_return": 708,
+                "recently_blocked_keys": [
+                  "key_jplqm1",
+                  "key_plqm1d",
+                  "key_lqm1dn"
+                ],
+                "top_keys": []
+              }
+            ],
+            [
+              "email-sender-2",
+              {
+                "workers": 7,
+                "idle": 5,
+                "waiting": 2,
+                "wait_time": 295,
+                "time_to_return": 728,
+                "recently_blocked_keys": [
+                  "key_nxhrnl",
+                  "key_xhrnlk",
+                  "key_hrnlk2"
+                ],
+                "top_keys": [
+                  [
+                    "top_m97i",
+                    12
+                  ],
+                  [
+                    "top_97i7",
+                    86
+                  ],
+                  [
+                    "top_7i7q",
+                    63
+                  ]
+                ]
+              }
+            ],
+            [
+              "data-processor-3",
+              {
+                "workers": 4,
+                "idle": 2,
+                "waiting": 1,
+                "wait_time": 92,
+                "time_to_return": 449,
+                "recently_blocked_keys": [],
+                "top_keys": [
+                  [
+                    "top_zfsq",
+                    53
+                  ],
+                  [
+                    "top_fsqx",
+                    72
+                  ],
+                  [
+                    "top_sqxo",
+                    33
+                  ]
+                ]
+              }
+            ],
+            [
+              "cache-manager-4",
+              {
+                "workers": 9,
+                "idle": 1,
+                "waiting": 6,
+                "wait_time": 245,
+                "time_to_return": 190,
+                "recently_blocked_keys": [
+                  "key_kkkfi0"
+                ],
+                "top_keys": [
+                  [
+                    "top_kwh5",
+                    31
+                  ],
+                  [
+                    "top_wh5m",
+                    24
+                  ]
+                ]
+              }
+            ]
+          ],
+          "timers": 2,
+          "worker_count": 4,
+          "avg_worker_load": 53,
+          "overloaded_workers": 0,
+          "active_workers": 3,
+          "total_worker_memory": 1346
+        }
+      },
+      "services": {
+        "redis": true,
+        "database": true
+      },
+      "performance": {
+        "response_times": {
+          "p50": 165,
+          "p95": 490,
+          "p99": 591
+        },
+        "error_rate": 1.9757396168001942,
+        "requests_per_second": 648,
+        "uptime_percent": 97.48648421468907
+      },
+      "deployment": {
+        "last_deployment": "2026-06-16T04:00:30.169Z",
+        "build_status": "success",
+        "version_number": "v1.0.6",
+        "rollback_ready": true,
+        "failed_deployments_last_week": 2,
+        "deployment_duration_minutes": 15,
+        "last_rollback": null
+      },
+      "memory": {
+        "usage_percent": 42.9706376651302,
+        "available_mb": 1893,
+        "total_mb": 8192,
+        "swap_usage_percent": 0.3138827438488079,
+        "total": 8,
+        "used": 6.21484375,
+        "available": 1.8876953125
+      },
+      "storage": {
+        "disk_usage_percent": 53.22860397728164,
+        "io_wait_percent": 4.484494812149933,
+        "read_ops_per_sec": 148,
+        "write_ops_per_sec": 198
+      },
+      "network": {
+        "bytes_in_per_sec": 172870,
+        "bytes_out_per_sec": 36019,
+        "packets_dropped": 0,
+        "latency_ms": 22
+      },
+      "alerts": {
+        "critical_alerts": 0,
+        "warning_alerts": 3,
+        "info_alerts": 7,
+        "active_alerts": 10,
+        "escalated_alerts": 1,
+        "alert_response_time": 28
+      },
+      "security": {
+        "threat_level": "low",
+        "vulnerability_score": 30,
+        "failed_auth_attempts": 13,
+        "firewall_blocks": 29,
+        "failed_logins": 11,
+        "blocked_ips": 3,
+        "ssl_cert_days": 76
+      }
+    }
+  },
+  "sa-east": {
+    "status": "ok",
+    "server_issue": null,
+    "strict": false,
+    "version": "v3.5.2",
+    "roles": [
+      "api",
+      "worker",
+      "cache"
+    ],
+    "results": {
+      "stats": {
+        "online": 16,
+        "servers_count": 3,
+        "session": 460,
+        "server": {
+          "cpus": 3,
+          "cpu_load": 41.94146947727516,
+          "active_connections": 7463,
+          "wait_time": 87,
+          "workers": [
+            [
+              "api-handler-1",
+              {
+                "workers": 8,
+                "idle": 5,
+                "waiting": 3,
+                "wait_time": 63,
+                "time_to_return": 1045,
+                "recently_blocked_keys": [
+                  "key_ye9p9m",
+                  "key_e9p9mw",
+                  "key_9p9mw3"
+                ],
+                "top_keys": [
+                  [
+                    "top_ye9p",
+                    40
+                  ]
+                ]
+              }
+            ],
+            [
+              "email-sender-2",
+              {
+                "workers": 5,
+                "idle": 4,
+                "waiting": 1,
+                "wait_time": 193,
+                "time_to_return": 347,
+                "recently_blocked_keys": [
+                  "key_3lthfg",
+                  "key_lthfgb",
+                  "key_thfgb0"
+                ],
+                "top_keys": []
+              }
+            ],
+            [
+              "data-processor-3",
+              {
+                "workers": 2,
+                "idle": 1,
+                "waiting": 1,
+                "wait_time": 110,
+                "time_to_return": 123,
+                "recently_blocked_keys": [
+                  "key_1ibbr9",
+                  "key_ibbr9u",
+                  "key_bbr9uq",
+                  "key_br9uq1"
+                ],
+                "top_keys": [
+                  [
+                    "top_4rb8",
+                    37
+                  ],
+                  [
+                    "top_rb82",
+                    80
+                  ]
+                ]
+              }
+            ]
+          ],
+          "timers": 14,
+          "worker_count": 3,
+          "avg_worker_load": 35,
+          "overloaded_workers": 0,
+          "active_workers": 3,
+          "total_worker_memory": 1593
+        }
+      },
+      "services": {
+        "redis": true,
+        "database": true
+      },
+      "performance": {
+        "response_times": {
+          "p50": 167,
+          "p95": 295,
+          "p99": 977
+        },
+        "error_rate": 2.4117068487131093,
+        "requests_per_second": 1588,
+        "uptime_percent": 99.5175083470374
+      },
+      "deployment": {
+        "last_deployment": "2026-06-13T00:53:03.925Z",
+        "build_status": "pending",
+        "version_number": "v2.14.1",
+        "rollback_ready": false,
+        "failed_deployments_last_week": 2,
+        "deployment_duration_minutes": 15,
+        "last_rollback": null
+      },
+      "memory": {
+        "usage_percent": 68.35412240190635,
+        "available_mb": 3355,
+        "total_mb": 8192,
+        "swap_usage_percent": 15.181340947638091,
+        "total": 8,
+        "used": 4.2587890625,
+        "available": 2.6630859375
+      },
+      "storage": {
+        "disk_usage_percent": 68.57374028782942,
+        "io_wait_percent": 8.348900642256467,
+        "read_ops_per_sec": 130,
+        "write_ops_per_sec": 191
+      },
+      "network": {
+        "bytes_in_per_sec": 214805,
+        "bytes_out_per_sec": 87422,
+        "packets_dropped": 0,
+        "latency_ms": 21
+      },
+      "alerts": {
+        "critical_alerts": 0,
+        "warning_alerts": 4,
+        "info_alerts": 7,
+        "active_alerts": 4,
+        "escalated_alerts": 1,
+        "alert_response_time": 27
+      },
+      "security": {
+        "threat_level": "low",
+        "vulnerability_score": 7,
+        "failed_auth_attempts": 8,
+        "firewall_blocks": 44,
+        "failed_logins": 16,
+        "blocked_ips": 42,
+        "ssl_cert_days": 70
+      }
+    }
+  },
+  "ap-southeast": {
+    "status": "ok",
+    "server_issue": null,
+    "strict": false,
+    "version": "v3.2.2",
+    "roles": [
+      "api",
+      "worker",
+      "cache"
+    ],
+    "results": {
+      "stats": {
+        "online": 21,
+        "servers_count": 5,
+        "session": 522,
+        "server": {
+          "cpus": 3,
+          "cpu_load": 44.97037328131795,
+          "active_connections": 8752,
+          "wait_time": 114,
+          "workers": [
+            [
+              "api-handler-1",
+              {
+                "workers": 8,
+                "idle": 7,
+                "waiting": 1,
+                "wait_time": 127,
+                "time_to_return": 78,
+                "recently_blocked_keys": [
+                  "key_kgxoiw",
+                  "key_gxoiwb"
+                ],
+                "top_keys": [
+                  [
+                    "top_kgxo",
+                    21
+                  ]
+                ]
+              }
+            ],
+            [
+              "email-sender-2",
+              {
+                "workers": 5,
+                "idle": 4,
+                "waiting": 1,
+                "wait_time": 374,
+                "time_to_return": 565,
+                "recently_blocked_keys": [
+                  "key_8is45q",
+                  "key_is45q3",
+                  "key_s45q3v"
+                ],
+                "top_keys": [
+                  [
+                    "top_2ryp",
+                    94
+                  ],
+                  [
+                    "top_rypo",
+                    90
+                  ]
+                ]
+              }
+            ],
+            [
+              "data-processor-3",
+              {
+                "workers": 2,
+                "idle": 1,
+                "waiting": 1,
+                "wait_time": 101,
+                "time_to_return": 498,
+                "recently_blocked_keys": [
+                  "key_2rypo2"
+                ],
+                "top_keys": []
+              }
+            ]
+          ],
+          "timers": 2,
+          "worker_count": 3,
+          "avg_worker_load": 48,
+          "overloaded_workers": 0,
+          "active_workers": 3,
+          "total_worker_memory": 1582
+        }
+      },
+      "services": {
+        "redis": true,
+        "database": true
+      },
+      "performance": {
+        "response_times": {
+          "p50": 173,
+          "p95": 343,
+          "p99": 738
+        },
+        "error_rate": 0.8687072904478178,
+        "requests_per_second": 613,
+        "uptime_percent": 98.19068833568366
+      },
+      "deployment": {
+        "last_deployment": "2026-06-12T06:55:21.296Z",
+        "build_status": "success",
+        "version_number": "v3.0.0",
+        "rollback_ready": false,
+        "failed_deployments_last_week": 0,
+        "deployment_duration_minutes": 29,
+        "last_rollback": null
+      },
+      "memory": {
+        "usage_percent": 42.667611452819756,
+        "available_mb": 3773,
+        "total_mb": 8192,
+        "swap_usage_percent": 17.762695846395218,
+        "total": 8,
+        "used": 5.900390625,
+        "available": 2.001953125
+      },
+      "storage": {
+        "disk_usage_percent": 52.50494594456541,
+        "io_wait_percent": 5.117603617204622,
+        "read_ops_per_sec": 297,
+        "write_ops_per_sec": 65
+      },
+      "network": {
+        "bytes_in_per_sec": 136226,
+        "bytes_out_per_sec": 103135,
+        "packets_dropped": 0,
+        "latency_ms": 10
+      },
+      "alerts": {
+        "critical_alerts": 1,
+        "warning_alerts": 4,
+        "info_alerts": 4,
+        "active_alerts": 5,
+        "escalated_alerts": 1,
+        "alert_response_time": 28
+      },
+      "security": {
+        "threat_level": "low",
+        "vulnerability_score": 20,
+        "failed_auth_attempts": 10,
+        "firewall_blocks": 39,
+        "failed_logins": 9,
+        "blocked_ips": 42,
+        "ssl_cert_days": 70
+      }
+    }
+  }
+}

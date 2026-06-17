@@ -24,6 +24,8 @@ export default function HeaderMount() {
     activeTab,
     lastUpdated,
     onBack,
+    dataStale,
+    snapshotSavedAt,
   } = useHeader();
 
   return (
@@ -39,6 +41,8 @@ export default function HeaderMount() {
         activeTab={activeTab || "latest"}
         lastUpdated={lastUpdated || null}
         onBack={pathname === "/" ? undefined : onBack}
+        dataStale={!!dataStale}
+        snapshotSavedAt={snapshotSavedAt ?? null}
       />
       <OnboardingHelpTour />
     </div>

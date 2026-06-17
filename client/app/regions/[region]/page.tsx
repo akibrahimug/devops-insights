@@ -85,6 +85,8 @@ export default function RegionDetailPage() {
     disableLive,
     isConnected,
     getInitialData,
+    dataOrigin,
+    snapshotSavedAt,
   } = useWebSocket();
   const [region, setRegion] = useState<Region | null>(null);
   const [errorDetails, setErrorDetails] = useState<{
@@ -200,8 +202,10 @@ export default function RegionDetailPage() {
       activeTab: mode,
       lastUpdated,
       onBack: handleBack,
+      dataStale: mode === "latest" && dataOrigin !== "live",
+      snapshotSavedAt,
     });
-  }, [region?.displayName, isConnected, mode, lastUpdated]);
+  }, [region?.displayName, isConnected, mode, lastUpdated, dataOrigin, snapshotSavedAt]);
 
   // History mode wiring: when mode changes, toggle live and request history for
   // the selected time window. Latest mode re-enables live and pulls a fresh

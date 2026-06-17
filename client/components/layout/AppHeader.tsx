@@ -13,6 +13,7 @@ import {
   WifiHighIcon,
   ArrowsClockwiseIcon,
   ArrowLeft,
+  CloudArrowDownIcon,
 } from "@phosphor-icons/react";
 
 interface AppHeaderProps {
@@ -26,6 +27,23 @@ interface AppHeaderProps {
   activeTab?: "latest" | "history";
   lastUpdated?: Date | null;
   onBack?: () => void;
+  dataStale?: boolean;
+  snapshotSavedAt?: string | null;
+}
+
+// Compact "x ago" for the cached-snapshot age. Returns null for the bundled
+// seed (no real timestamp) so we just show a generic "cached" label.
+function formatAge(iso?: string | null): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then) || then <= 0) return null;
+  const secs = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 export function AppHeader({
@@ -39,7 +57,10 @@ export function AppHeader({
   activeTab = "latest",
   lastUpdated,
   onBack,
+  dataStale = false,
+  snapshotSavedAt = null,
 }: AppHeaderProps) {
+  const cachedAge = formatAge(snapshotSavedAt);
   return (
     <header className="flex items-center justify-between animate-fade-in">
       <div className="flex items-center gap-2 animate-slide-in-left">
@@ -96,6 +117,23 @@ export function AppHeader({
             )
           ) : null}
         </p>
+        {dataStale && (
+          <span
+            className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
+            title={
+              cachedAge
+                ? `Showing your last cached data (${cachedAge}) — updating…`
+                : "Showing cached data — updating…"
+            }
+            aria-live="polite"
+          >
+            <CloudArrowDownIcon size={14} weight="bold" />
+            <span className="hidden sm:inline">
+              Cached{cachedAge ? ` · ${cachedAge}` : ""} · updating…
+            </span>
+            <span className="sm:hidden">Cached</span>
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-3 animate-slide-in-right">
         <ThemeToggle />

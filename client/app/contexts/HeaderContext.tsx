@@ -11,6 +11,11 @@ interface HeaderConfig {
   lastUpdated?: Date | null;
   showHistory?: boolean;
   activeTab?: HeaderTab;
+  // True while the dashboard is showing cached/seed data, before the first live
+  // payload lands. `snapshotSavedAt` is the ISO time the cached snapshot was
+  // saved (null for the bundled seed), used to show its age.
+  dataStale?: boolean;
+  snapshotSavedAt?: string | null;
   onLatestClick?: () => void;
   onHistoryClick?: () => void;
   onToggleRefresh?: () => void;
